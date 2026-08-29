@@ -4,9 +4,445 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>卡密管理后台</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
+                         "PingFang SC", "Microsoft YaHei", sans-serif;
+            background: #f5f7fb;
+            color: #1f2937;
+        }
+
+        .header {
+            height: 64px;
+            background: #ffffff;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .logo {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .admin {
+            color: #6b7280;
+            font-size: 14px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+
+        .welcome {
+            margin-bottom: 24px;
+        }
+
+        .welcome h1 {
+            margin: 0 0 8px;
+            font-size: 28px;
+        }
+
+        .welcome p {
+            margin: 0;
+            color: #6b7280;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .card {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            padding: 20px;
+        }
+
+        .stat-title {
+            color: #6b7280;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .stat-number {
+            font-size: 30px;
+            font-weight: 700;
+        }
+
+        .green {
+            color: #16a34a;
+        }
+
+        .blue {
+            color: #2563eb;
+        }
+
+        .red {
+            color: #dc2626;
+        }
+
+        .section {
+            margin-bottom: 24px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 14px;
+        }
+
+        .stock {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+
+        .stock-item {
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            padding: 20px;
+        }
+
+        .stock-item h3 {
+            margin: 0 0 10px;
+        }
+
+        .stock-item p {
+            margin: 5px 0;
+            color: #6b7280;
+        }
+
+        .search {
+            display: flex;
+            gap: 10px;
+        }
+
+        .search input {
+            flex: 1;
+            min-width: 0;
+            padding: 13px 15px;
+            border: 1px solid #d1d5db;
+            border-radius: 10px;
+            font-size: 15px;
+            outline: none;
+        }
+
+        .search input:focus {
+            border-color: #2563eb;
+        }
+
+        button {
+            border: none;
+            border-radius: 10px;
+            padding: 0 20px;
+            background: #2563eb;
+            color: white;
+            font-size: 15px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        .table-wrap {
+            overflow-x: auto;
+            background: #ffffff;
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 750px;
+        }
+
+        th, td {
+            padding: 14px 16px;
+            text-align: left;
+            border-bottom: 1px solid #f0f0f0;
+            white-space: nowrap;
+        }
+
+        th {
+            background: #fafafa;
+            color: #6b7280;
+            font-size: 13px;
+        }
+
+        td {
+            font-size: 14px;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 5px 9px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-active {
+            background: #dcfce7;
+            color: #15803d;
+        }
+
+        .status-unused {
+            background: #dbeafe;
+            color: #1d4ed8;
+        }
+
+        .status-expired {
+            background: #fee2e2;
+            color: #b91c1c;
+        }
+
+        .footer {
+            text-align: center;
+            color: #9ca3af;
+            font-size: 13px;
+            padding: 20px;
+        }
+
+        @media (max-width: 800px) {
+            .stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .stock {
+                grid-template-columns: 1fr;
+            }
+
+            .container {
+                padding: 16px;
+            }
+
+            .header {
+                padding: 0 16px;
+            }
+
+            .welcome h1 {
+                font-size: 24px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .stats {
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
+            }
+
+            .stat-number {
+                font-size: 24px;
+            }
+
+            .search {
+                flex-direction: column;
+            }
+
+            .search button {
+                height: 45px;
+            }
+        }
+    </style>
 </head>
+
 <body>
-    <h1>卡密管理后台</h1>
-    <p>后台项目创建成功。</p>
+
+<header class="header">
+    <div class="logo">🎫 卡密管理后台</div>
+    <div class="admin">管理员</div>
+</header>
+
+<main class="container">
+
+    <section class="welcome">
+        <h1>控制台</h1>
+        <p>管理你的卡密、库存和激活情况</p>
+    </section>
+
+    <section class="stats">
+
+        <div class="card">
+            <div class="stat-title">卡密总数</div>
+            <div class="stat-number">1000</div>
+        </div>
+
+        <div class="card">
+            <div class="stat-title">未激活</div>
+            <div class="stat-number blue">720</div>
+        </div>
+
+        <div class="card">
+            <div class="stat-title">已激活</div>
+            <div class="stat-number green">230</div>
+        </div>
+
+        <div class="card">
+            <div class="stat-title">已过期</div>
+            <div class="stat-number red">50</div>
+        </div>
+
+    </section>
+
+    <section class="section">
+
+        <div class="section-title">📦 卡密库存</div>
+
+        <div class="stock">
+
+            <div class="stock-item">
+                <h3>DAY 天卡</h3>
+                <p>未激活库存：300</p>
+                <p>已激活：80</p>
+                <p>已过期：20</p>
+            </div>
+
+            <div class="stock-item">
+                <h3>WEEK 周卡</h3>
+                <p>未激活库存：250</p>
+                <p>已激活：70</p>
+                <p>已过期：30</p>
+            </div>
+
+            <div class="stock-item">
+                <h3>MONTH 月卡</h3>
+                <p>未激活库存：170</p>
+                <p>已激活：80</p>
+                <p>已过期：0</p>
+            </div>
+
+        </div>
+
+    </section>
+
+    <section class="section">
+
+        <div class="section-title">🔍 查询卡密</div>
+
+        <div class="card">
+
+            <div class="search">
+                <input
+                    type="text"
+                    id="searchInput"
+                    placeholder="输入完整卡密，例如 DAY-XXXX-XXXX-XXXX"
+                >
+
+                <button onclick="searchCard()">
+                    查询
+                </button>
+            </div>
+
+        </div>
+
+    </section>
+
+    <section class="section">
+
+        <div class="section-title">📋 最近卡密</div>
+
+        <div class="table-wrap">
+
+            <table>
+
+                <thead>
+                    <tr>
+                        <th>卡密</th>
+                        <th>类型</th>
+                        <th>状态</th>
+                        <th>激活时间</th>
+                        <th>到期时间</th>
+                        <th>设备 ID</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+
+                    <tr>
+                        <td>DAY-ABCD-EFGH-IJKL</td>
+                        <td>天卡</td>
+                        <td>
+                            <span class="status status-active">
+                                正常使用
+                            </span>
+                        </td>
+                        <td>2026-08-29 02:25</td>
+                        <td>2026-08-30 02:25</td>
+                        <td>未记录</td>
+                    </tr>
+
+                    <tr>
+                        <td>WEEK-ABCD-EFGH-IJKL</td>
+                        <td>周卡</td>
+                        <td>
+                            <span class="status status-unused">
+                                未激活
+                            </span>
+                        </td>
+                        <td>—</td>
+                        <td>—</td>
+                        <td>未绑定</td>
+                    </tr>
+
+                    <tr>
+                        <td>MONTH-ABCD-EFGH-IJKL</td>
+                        <td>月卡</td>
+                        <td>
+                            <span class="status status-expired">
+                                已过期
+                            </span>
+                        </td>
+                        <td>2026-07-29 10:00</td>
+                        <td>2026-08-28 10:00</td>
+                        <td>未记录</td>
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </section>
+
+</main>
+
+<div class="footer">
+    卡密管理后台 · 第一版
+</div>
+
+<script>
+    function searchCard() {
+        const value = document.getElementById("searchInput").value.trim();
+
+        if (!value) {
+            alert("请输入卡密");
+            return;
+        }
+
+        alert("查询功能下一步接入 Supabase：\n\n" + value);
+    }
+</script>
+
 </body>
 </html>
