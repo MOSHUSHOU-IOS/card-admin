@@ -4,6 +4,11 @@ const SUPABASE_URL =
 const SUPABASE_KEY =
     "sb_publishable_YOcRrmDG4qJMMF90qW4p2Q_0HH_CA-D";
 
+
+// ==================================================
+// Supabase
+// ==================================================
+
 const supabase =
     window.supabase.createClient(
         SUPABASE_URL,
@@ -20,6 +25,9 @@ const HEARTBEAT_REFRESH_INTERVAL = 2000;
 
 let heartbeatTimer = null;
 
+let dashboardLoading = false;
+let heartbeatLoading = false;
+
 
 // ==================================================
 // 登录
@@ -27,11 +35,21 @@ let heartbeatTimer = null;
 
 async function login() {
 
+    const emailElement =
+        document.getElementById("email");
+
+    const passwordElement =
+        document.getElementById("password");
+
     const email =
-        document.getElementById("email").value.trim();
+        emailElement
+            ? emailElement.value.trim()
+            : "";
 
     const password =
-        document.getElementById("password").value;
+        passwordElement
+            ? passwordElement.value
+            : "";
 
 
     if (!email || !password) {
@@ -45,34 +63,51 @@ async function login() {
     showMessage("正在登录...");
 
 
-    const { error } =
-        await supabase.auth.signInWithPassword({
+    try {
 
-            email,
-            password
+        const { error } =
+            await supabase.auth.signInWithPassword({
+                email,
+                password
+            });
 
-        });
+
+        if (error) {
+
+            console.error(
+                "登录失败：",
+                error
+            );
+
+            showMessage(
+                "登录失败：" +
+                error.message
+            );
+
+            return;
+        }
 
 
-    if (error) {
+        showMessage("登录成功");
 
-        console.error("登录失败：", error);
+        showAdminPage();
 
-        showMessage(
-            "登录失败：" + error.message
+
+        await loadDashboard();
+
+        startHeartbeatRefresh();
+
+    } catch (error) {
+
+        console.error(
+            "登录异常：",
+            error
         );
 
-        return;
+        showMessage(
+            "登录失败，请检查网络连接"
+        );
     }
-
-
-    showMessage("登录成功");
-
-    showAdminPage();
-
-    await loadDashboard();
-
-    startHeartbeatRefresh();
 }
 
 
@@ -91,15 +126,15 @@ function showAdminPage() {
 
     if (loginPage) {
 
-        loginPage.style.display = "none";
-
+        loginPage.style.display =
+            "none";
     }
 
 
     if (adminPage) {
 
-        adminPage.style.display = "block";
-
+        adminPage.style.display =
+            "block";
     }
 }
 
@@ -119,15 +154,15 @@ function showLoginPage() {
 
     if (adminPage) {
 
-        adminPage.style.display = "none";
-
+        adminPage.style.display =
+            "none";
     }
 
 
     if (loginPage) {
 
-        loginPage.style.display = "flex";
-
+        loginPage.style.display =
+            "flex";
     }
 }
 
@@ -141,17 +176,16 @@ async function logout() {
     stopHeartbeatRefresh();
 
 
-    const { error } =
+    try {
+
         await supabase.auth.signOut();
 
-
-    if (error) {
+    } catch (error) {
 
         console.error(
-            "退出失败：",
+            "退出异常：",
             error
         );
-
     }
 
 
@@ -165,7 +199,6 @@ async function logout() {
     if (password) {
 
         password.value = "";
-
     }
 }
 
@@ -192,7 +225,8 @@ function showForgotPassword() {
     }
 
 
-    box.style.display = "block";
+    box.style.display =
+        "block";
 
 
     const emailElement =
@@ -259,13 +293,11 @@ async function sendResetEmail() {
 
         const { error } =
             await supabase.auth.resetPasswordForEmail(
-
                 email,
-
                 {
-                    redirectTo: redirectUrl
+                    redirectTo:
+                        redirectUrl
                 }
-
             );
 
 
@@ -297,7 +329,7 @@ async function sendResetEmail() {
         );
 
         showMessage(
-            "发送失败，请稍后再试"
+            "发送失败，请检查网络连接"
         );
     }
 }
@@ -308,11 +340,10 @@ async function sendResetEmail() {
 // ==================================================
 
 supabase.auth.onAuthStateChange(
-
     async (event, session) => {
 
         console.log(
-            "Auth Event:",
+            "Supabase Auth Event:",
             event
         );
 
@@ -337,7 +368,6 @@ supabase.auth.onAuthStateChange(
 
                 box.style.display =
                     "block";
-
             }
 
 
@@ -345,7 +375,6 @@ supabase.auth.onAuthStateChange(
 
                 resetBox.style.display =
                     "block";
-
             }
 
 
@@ -430,54 +459,65 @@ async function resetPassword() {
     );
 
 
-    const { error } =
-        await supabase.auth.updateUser({
+    try {
 
-            password:
-                newPassword
+        const { error } =
+            await supabase.auth.updateUser({
+                password:
+                    newPassword
+            });
 
-        });
+
+        if (error) {
+
+            console.error(
+                "修改密码失败：",
+                error
+            );
+
+            showMessage(
+                "修改密码失败：" +
+                error.message
+            );
+
+            return;
+        }
 
 
-    if (error) {
+        showMessage(
+            "密码修改成功，请重新登录"
+        );
+
+
+        if (newPasswordElement) {
+
+            newPasswordElement.value =
+                "";
+        }
+
+
+        if (confirmPasswordElement) {
+
+            confirmPasswordElement.value =
+                "";
+        }
+
+
+        await supabase.auth.signOut();
+
+        showLoginPage();
+
+    } catch (error) {
 
         console.error(
-            "修改密码失败：",
+            "修改密码异常：",
             error
         );
 
         showMessage(
-            "修改密码失败：" +
-            error.message
+            "修改密码失败，请稍后再试"
         );
-
-        return;
     }
-
-
-    showMessage(
-        "密码修改成功，请重新登录"
-    );
-
-
-    if (newPasswordElement) {
-
-        newPasswordElement.value = "";
-
-    }
-
-
-    if (confirmPasswordElement) {
-
-        confirmPasswordElement.value = "";
-
-    }
-
-
-    await supabase.auth.signOut();
-
-
-    showLoginPage();
 }
 
 
@@ -487,50 +527,75 @@ async function resetPassword() {
 
 async function loadDashboard() {
 
-    const { data, error } =
-        await supabase
-
-            .from("cards")
-
-            .select(
-                "card, duration_days, status, created_at, activated_at, expires_at, device_id"
-            )
-
-            .order(
-                "created_at",
-                {
-                    ascending: false
-                }
-            );
-
-
-    if (error) {
-
-        console.error(
-            "读取卡密失败：",
-            error
-        );
-
-        showMessage(
-            "读取卡密失败：" +
-            error.message
-        );
+    if (dashboardLoading) {
 
         return;
     }
 
 
-    const cards =
-        data || [];
+    dashboardLoading = true;
 
 
-    updateStatistics(cards);
+    try {
 
-    renderCards(cards);
+        const { data, error } =
+            await supabase
+                .from("cards")
+                .select(
+                    "card, duration_days, status, created_at, activated_at, expires_at, device_id"
+                )
+                .order(
+                    "created_at",
+                    {
+                        ascending: false
+                    }
+                );
 
-    renderStock(cards);
 
-    await loadHeartbeats(cards);
+        if (error) {
+
+            console.error(
+                "读取卡密失败：",
+                error
+            );
+
+            showMessage(
+                "读取卡密失败：" +
+                error.message
+            );
+
+            return;
+        }
+
+
+        const cards =
+            data || [];
+
+
+        updateStatistics(cards);
+
+        renderCards(cards);
+
+        renderStock(cards);
+
+        await loadHeartbeats(cards);
+
+    } catch (error) {
+
+        console.error(
+            "加载后台异常：",
+            error
+        );
+
+        showMessage(
+            "后台加载失败，请检查网络连接"
+        );
+
+    } finally {
+
+        dashboardLoading =
+            false;
+    }
 }
 
 
@@ -593,7 +658,6 @@ function updateStatistics(cards) {
 
         totalElement.textContent =
             total;
-
     }
 
 
@@ -601,7 +665,6 @@ function updateStatistics(cards) {
 
         unusedElement.textContent =
             unused;
-
     }
 
 
@@ -609,7 +672,6 @@ function updateStatistics(cards) {
 
         activeElement.textContent =
             active;
-
     }
 
 
@@ -617,7 +679,6 @@ function updateStatistics(cards) {
 
         expiredElement.textContent =
             expired;
-
     }
 }
 
@@ -634,11 +695,14 @@ function renderCards(cards) {
         );
 
 
-    if (!tbody)
+    if (!tbody) {
+
         return;
+    }
 
 
-    tbody.innerHTML = "";
+    tbody.innerHTML =
+        "";
 
 
     if (cards.length === 0) {
@@ -737,24 +801,33 @@ function renderStock(cards) {
         const unused =
             cards.filter(
                 card =>
-                    card.duration_days === days &&
-                    card.status === "unused"
+                    Number(
+                        card.duration_days
+                    ) === days &&
+                    card.status ===
+                        "unused"
             ).length;
 
 
         const active =
             cards.filter(
                 card =>
-                    card.duration_days === days &&
-                    card.status === "active"
+                    Number(
+                        card.duration_days
+                    ) === days &&
+                    card.status ===
+                        "active"
             ).length;
 
 
         const expired =
             cards.filter(
                 card =>
-                    card.duration_days === days &&
-                    card.status === "expired"
+                    Number(
+                        card.duration_days
+                    ) === days &&
+                    card.status ===
+                        "expired"
             ).length;
 
 
@@ -780,7 +853,6 @@ function renderStock(cards) {
 
             unusedElement.textContent =
                 unused;
-
         }
 
 
@@ -788,7 +860,6 @@ function renderStock(cards) {
 
             activeElement.textContent =
                 active;
-
         }
 
 
@@ -796,7 +867,6 @@ function renderStock(cards) {
 
             expiredElement.textContent =
                 expired;
-
         }
     }
 }
@@ -814,15 +884,15 @@ async function loadHeartbeats(cards) {
         );
 
 
-    if (!tbody)
+    if (!tbody) {
+
         return;
+    }
 
 
     const { data, error } =
         await supabase
-
             .from("card_heartbeats")
-
             .select(
                 "card, device_id, last_heartbeat"
             );
@@ -869,61 +939,63 @@ async function loadHeartbeats(cards) {
             card.card,
             card
         );
-
     });
 
 
     const rows = [];
 
 
-    heartbeats.forEach(heartbeat => {
+    heartbeats.forEach(
+        heartbeat => {
 
-        const card =
-            cardMap.get(
-                heartbeat.card
-            );
-
-
-        if (!card)
-            return;
+            const card =
+                cardMap.get(
+                    heartbeat.card
+                );
 
 
-        const heartbeatTime =
-            new Date(
-                heartbeat.last_heartbeat
-            ).getTime();
+            if (!card) {
+
+                return;
+            }
 
 
-        if (
-            Number.isNaN(
-                heartbeatTime
-            )
-        )
-            return;
+            const heartbeatTime =
+                new Date(
+                    heartbeat.last_heartbeat
+                ).getTime();
 
 
-        const elapsed =
-            now - heartbeatTime;
+            if (
+                Number.isNaN(
+                    heartbeatTime
+                )
+            ) {
+
+                return;
+            }
 
 
-        const online =
-            elapsed <=
-            HEARTBEAT_TIMEOUT;
+            const elapsed =
+                now -
+                heartbeatTime;
 
 
-        rows.push({
+            const online =
+                elapsed <=
+                HEARTBEAT_TIMEOUT;
 
-            heartbeat,
 
-            card,
+            rows.push({
 
-            online,
+                heartbeat,
+                card,
+                online,
+                elapsed
 
-            elapsed
-
-        });
-
-    });
+            });
+        }
+    );
 
 
     rows.sort(
@@ -942,11 +1014,13 @@ async function loadHeartbeats(cards) {
 
             return (
                 new Date(
-                    b.heartbeat.last_heartbeat
+                    b.heartbeat
+                        .last_heartbeat
                 ).getTime()
                 -
                 new Date(
-                    a.heartbeat.last_heartbeat
+                    a.heartbeat
+                        .last_heartbeat
                 ).getTime()
             );
         }
@@ -969,11 +1043,14 @@ function renderHeartbeatRows(rows) {
         );
 
 
-    if (!tbody)
+    if (!tbody) {
+
         return;
+    }
 
 
-    tbody.innerHTML = "";
+    tbody.innerHTML =
+        "";
 
 
     if (rows.length === 0) {
@@ -995,8 +1072,10 @@ function renderHeartbeatRows(rows) {
         const heartbeat =
             item.heartbeat;
 
+
         const card =
             item.card;
+
 
         const row =
             document.createElement(
@@ -1068,7 +1147,6 @@ function renderHeartbeatRows(rows) {
 
 
         tbody.appendChild(row);
-
     });
 }
 
@@ -1086,33 +1164,68 @@ function startHeartbeatRefresh() {
         setInterval(
             async () => {
 
-                const { data, error } =
-                    await supabase.auth.getSession();
+                if (
+                    heartbeatLoading
+                ) {
+
+                    return;
+                }
 
 
-                if (error) {
+                heartbeatLoading =
+                    true;
+
+
+                try {
+
+                    const {
+                        data,
+                        error
+                    } =
+                        await supabase
+                            .auth
+                            .getSession();
+
+
+                    if (error) {
+
+                        console.error(
+                            "检查登录状态失败：",
+                            error
+                        );
+
+                        return;
+                    }
+
+
+                    if (
+                        !data.session
+                    ) {
+
+                        stopHeartbeatRefresh();
+
+                        showLoginPage();
+
+                        return;
+                    }
+
+
+                    await loadHeartbeatOnly();
+
+                } catch (error) {
 
                     console.error(
-                        "检查登录状态失败：",
+                        "心跳刷新异常：",
                         error
                     );
 
-                    return;
+                } finally {
+
+                    heartbeatLoading =
+                        false;
                 }
-
-
-                if (!data.session) {
-
-                    stopHeartbeatRefresh();
-
-                    return;
-                }
-
-
-                await loadHeartbeatOnly();
 
             },
-
             HEARTBEAT_REFRESH_INTERVAL
         );
 }
@@ -1126,9 +1239,7 @@ async function loadHeartbeatOnly() {
 
     const { data, error } =
         await supabase
-
             .from("cards")
-
             .select(
                 "card, duration_days, status, created_at, activated_at, expires_at, device_id"
             );
@@ -1165,7 +1276,8 @@ function stopHeartbeatRefresh() {
             heartbeatTimer
         );
 
-        heartbeatTimer = null;
+        heartbeatTimer =
+            null;
     }
 }
 
@@ -1188,8 +1300,10 @@ async function searchCard() {
         );
 
 
-    if (!input || !result)
+    if (!input || !result) {
+
         return;
+    }
 
 
     const card =
@@ -1209,97 +1323,108 @@ async function searchCard() {
         "正在查询...";
 
 
-    const { data, error } =
-        await supabase
+    try {
 
-            .from("cards")
-
-            .select(
-                "card, duration_days, status, created_at, activated_at, expires_at, device_id"
-            )
-
-            .eq(
-                "card",
-                card
-            )
-
-            .maybeSingle();
+        const { data, error } =
+            await supabase
+                .from("cards")
+                .select(
+                    "card, duration_days, status, created_at, activated_at, expires_at, device_id"
+                )
+                .eq(
+                    "card",
+                    card
+                )
+                .maybeSingle();
 
 
-    if (error) {
+        if (error) {
+
+            console.error(
+                "查询卡密失败：",
+                error
+            );
+
+            result.innerHTML =
+                "查询失败：" +
+                escapeHTML(
+                    error.message
+                );
+
+            return;
+        }
+
+
+        if (!data) {
+
+            result.innerHTML =
+                "没有找到这张卡密";
+
+            return;
+        }
+
+
+        result.innerHTML = `
+
+            <div class="card">
+
+                <p>
+                    <strong>卡密：</strong>
+                    ${escapeHTML(
+                        data.card
+                    )}
+                </p>
+
+                <p>
+                    <strong>类型：</strong>
+                    ${getCardType(
+                        data.duration_days
+                    )}
+                </p>
+
+                <p>
+                    <strong>状态：</strong>
+                    ${getStatusHTML(
+                        data.status
+                    )}
+                </p>
+
+                <p>
+                    <strong>激活时间：</strong>
+                    ${formatTime(
+                        data.activated_at
+                    )}
+                </p>
+
+                <p>
+                    <strong>到期时间：</strong>
+                    ${formatTime(
+                        data.expires_at
+                    )}
+                </p>
+
+                <p>
+                    <strong>设备 ID：</strong>
+                    ${escapeHTML(
+                        data.device_id ||
+                        "未记录"
+                    )}
+                </p>
+
+            </div>
+
+        `;
+
+    } catch (error) {
 
         console.error(
-            "查询卡密失败：",
+            "查询卡密异常：",
             error
         );
 
         result.innerHTML =
-            "查询失败：" +
-            escapeHTML(
-                error.message
-            );
-
-        return;
+            "查询失败，请稍后再试";
     }
-
-
-    if (!data) {
-
-        result.innerHTML =
-            "没有找到这张卡密";
-
-        return;
-    }
-
-
-    result.innerHTML = `
-
-        <div class="card">
-
-            <p>
-                <strong>卡密：</strong>
-                ${escapeHTML(data.card)}
-            </p>
-
-            <p>
-                <strong>类型：</strong>
-                ${getCardType(
-                    data.duration_days
-                )}
-            </p>
-
-            <p>
-                <strong>状态：</strong>
-                ${getStatusHTML(
-                    data.status
-                )}
-            </p>
-
-            <p>
-                <strong>激活时间：</strong>
-                ${formatTime(
-                    data.activated_at
-                )}
-            </p>
-
-            <p>
-                <strong>到期时间：</strong>
-                ${formatTime(
-                    data.expires_at
-                )}
-            </p>
-
-            <p>
-                <strong>设备 ID：</strong>
-                ${escapeHTML(
-                    data.device_id ||
-                    "未记录"
-                )}
-            </p>
-
-        </div>
-
-    `;
 }
 
 
@@ -1312,139 +1437,153 @@ async function showCardsByStatus(
     title
 ) {
 
-    const { data, error } =
-        await supabase
+    try {
 
-            .from("cards")
+        const { data, error } =
+            await supabase
+                .from("cards")
+                .select(
+                    "card, duration_days, status, created_at, activated_at, expires_at, device_id"
+                )
+                .eq(
+                    "status",
+                    status
+                )
+                .order(
+                    "created_at",
+                    {
+                        ascending: false
+                    }
+                );
 
-            .select(
-                "card, duration_days, status, created_at, activated_at, expires_at, device_id"
-            )
 
-            .eq(
-                "status",
-                status
-            )
+        if (error) {
 
-            .order(
-                "created_at",
-                {
-                    ascending: false
-                }
+            console.error(
+                "状态查询失败：",
+                error
+            );
+
+            showMessage(
+                "查询失败：" +
+                error.message
+            );
+
+            return;
+        }
+
+
+        const cards =
+            data || [];
+
+
+        const tbody =
+            document.getElementById(
+                "cardTableBody"
             );
 
 
-    if (error) {
+        if (!tbody) {
+
+            return;
+        }
+
+
+        tbody.innerHTML =
+            "";
+
+
+        if (
+            cards.length === 0
+        ) {
+
+            tbody.innerHTML = `
+
+                <tr>
+
+                    <td colspan="6">
+                        ${escapeHTML(
+                            title
+                        )}：暂无数据
+                    </td>
+
+                </tr>
+
+            `;
+
+            return;
+        }
+
+
+        cards.forEach(card => {
+
+            const row =
+                document.createElement(
+                    "tr"
+                );
+
+
+            row.innerHTML = `
+
+                <td>
+                    ${escapeHTML(
+                        card.card
+                    )}
+                </td>
+
+                <td>
+                    ${getCardType(
+                        card.duration_days
+                    )}
+                </td>
+
+                <td>
+                    ${getStatusHTML(
+                        card.status
+                    )}
+                </td>
+
+                <td>
+                    ${formatTime(
+                        card.activated_at
+                    )}
+                </td>
+
+                <td>
+                    ${formatTime(
+                        card.expires_at
+                    )}
+                </td>
+
+                <td>
+                    ${escapeHTML(
+                        card.device_id ||
+                        "未记录"
+                    )}
+                </td>
+
+            `;
+
+
+            tbody.appendChild(row);
+        });
+
+
+        showMessage(
+            `${title}：${cards.length} 张`
+        );
+
+    } catch (error) {
 
         console.error(
-            "状态查询失败：",
+            "状态查询异常：",
             error
         );
 
         showMessage(
-            "查询失败：" +
-            error.message
+            "查询失败，请稍后再试"
         );
-
-        return;
     }
-
-
-    const cards =
-        data || [];
-
-
-    const tbody =
-        document.getElementById(
-            "cardTableBody"
-        );
-
-
-    if (!tbody)
-        return;
-
-
-    tbody.innerHTML = "";
-
-
-    if (
-        cards.length === 0
-    ) {
-
-        tbody.innerHTML = `
-
-            <tr>
-
-                <td colspan="6">
-                    ${escapeHTML(title)}：暂无数据
-                </td>
-
-            </tr>
-
-        `;
-
-        return;
-    }
-
-
-    cards.forEach(card => {
-
-        const row =
-            document.createElement(
-                "tr"
-            );
-
-
-        row.innerHTML = `
-
-            <td>
-                ${escapeHTML(
-                    card.card
-                )}
-            </td>
-
-            <td>
-                ${getCardType(
-                    card.duration_days
-                )}
-            </td>
-
-            <td>
-                ${getStatusHTML(
-                    card.status
-                )}
-            </td>
-
-            <td>
-                ${formatTime(
-                    card.activated_at
-                )}
-            </td>
-
-            <td>
-                ${formatTime(
-                    card.expires_at
-                )}
-            </td>
-
-            <td>
-                ${escapeHTML(
-                    card.device_id ||
-                    "未记录"
-                )}
-            </td>
-
-        `;
-
-
-        tbody.appendChild(row);
-
-    });
-
-
-    showMessage(
-        `${title}：${cards.length} 张`
-    );
 }
 
 
@@ -1481,16 +1620,29 @@ function showExpiredCards() {
 
 function getCardType(days) {
 
-    if (days === 1)
+    const number =
+        Number(days);
+
+
+    if (number === 1) {
+
         return "天卡";
+    }
 
-    if (days === 7)
+
+    if (number === 7) {
+
         return "周卡";
+    }
 
-    if (days === 30)
+
+    if (number === 30) {
+
         return "月卡";
+    }
 
-    return days + "天";
+
+    return number + "天";
 }
 
 
@@ -1500,7 +1652,9 @@ function getCardType(days) {
 
 function getStatusHTML(status) {
 
-    if (status === "unused") {
+    if (
+        status === "unused"
+    ) {
 
         return `
             <span class="status status-unused">
@@ -1510,7 +1664,9 @@ function getStatusHTML(status) {
     }
 
 
-    if (status === "active") {
+    if (
+        status === "active"
+    ) {
 
         return `
             <span class="status status-active">
@@ -1520,7 +1676,9 @@ function getStatusHTML(status) {
     }
 
 
-    if (status === "expired") {
+    if (
+        status === "expired"
+    ) {
 
         return `
             <span class="status status-expired">
@@ -1533,7 +1691,8 @@ function getStatusHTML(status) {
     return `
         <span class="status">
             ${escapeHTML(
-                status || "未知"
+                status ||
+                "未知"
             )}
         </span>
     `;
@@ -1546,8 +1705,10 @@ function getStatusHTML(status) {
 
 function formatTime(value) {
 
-    if (!value)
+    if (!value) {
+
         return "—";
+    }
 
 
     const date =
@@ -1597,7 +1758,7 @@ function formatTime(value) {
 
 
 // ==================================================
-// 生成卡密
+// 随机字符串
 // ==================================================
 
 function randomPart(length = 4) {
@@ -1606,7 +1767,42 @@ function randomPart(length = 4) {
         "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 
-    let result = "";
+    let result =
+        "";
+
+
+    if (
+        window.crypto &&
+        window.crypto.getRandomValues
+    ) {
+
+        const values =
+            new Uint32Array(
+                length
+            );
+
+
+        window.crypto.getRandomValues(
+            values
+        );
+
+
+        for (
+            let i = 0;
+            i < length;
+            i++
+        ) {
+
+            result +=
+                chars[
+                    values[i] %
+                    chars.length
+                ];
+        }
+
+
+        return result;
+    }
 
 
     for (
@@ -1629,17 +1825,32 @@ function randomPart(length = 4) {
 }
 
 
+// ==================================================
+// 生成卡密
+// ==================================================
+
 function generateCardCode(type) {
 
     const prefix =
-        type.toUpperCase();
+        String(type)
+            .toUpperCase();
 
 
-    return `
-        ${prefix}-${randomPart()}-${randomPart()}-${randomPart()}
-    `.replace(/\s+/g, "");
+    return (
+        prefix +
+        "-" +
+        randomPart(4) +
+        "-" +
+        randomPart(4) +
+        "-" +
+        randomPart(4)
+    );
 }
 
+
+// ==================================================
+// 生成卡密
+// ==================================================
 
 async function generateCards() {
 
@@ -1655,8 +1866,17 @@ async function generateCards() {
         );
 
 
-    if (!typeElement || !countElement)
+    if (
+        !typeElement ||
+        !countElement
+    ) {
+
+        showMessage(
+            "找不到生成卡密控件"
+        );
+
         return;
+    }
 
 
     const type =
@@ -1710,17 +1930,37 @@ async function generateCards() {
 
     const cards = [];
 
+    const generatedCodes =
+        new Set();
 
-    for (
-        let i = 0;
-        i < count;
-        i++
+
+    // ==================================================
+    // 本批次内部防重复
+    // ==================================================
+
+    while (
+        cards.length < count
     ) {
+
+        const code =
+            generateCardCode(type);
+
+
+        if (
+            generatedCodes.has(code)
+        ) {
+
+            continue;
+        }
+
+
+        generatedCodes.add(code);
+
 
         cards.push({
 
             card:
-                generateCardCode(type),
+                code,
 
             duration_days:
                 durationDays,
@@ -1737,77 +1977,86 @@ async function generateCards() {
     );
 
 
-    const { data, error } =
-        await supabase
+    try {
 
-            .from("cards")
+        const { data, error } =
+            await supabase
+                .from("cards")
+                .insert(cards)
+                .select(
+                    "card"
+                );
 
-            .insert(cards)
 
-            .select(
-                "card"
+        if (error) {
+
+            console.error(
+                "生成卡密失败：",
+                error
+            );
+
+            showMessage(
+                "生成失败：" +
+                error.message
+            );
+
+            return;
+        }
+
+
+        const generated =
+            (data || [])
+                .map(
+                    item =>
+                        item.card
+                )
+                .join("\n");
+
+
+        const generatedElement =
+            document.getElementById(
+                "generatedCards"
             );
 
 
-    if (error) {
+        const resultElement =
+            document.getElementById(
+                "generateResult"
+            );
+
+
+        if (generatedElement) {
+
+            generatedElement.textContent =
+                generated;
+        }
+
+
+        if (resultElement) {
+
+            resultElement.style.display =
+                "block";
+        }
+
+
+        showMessage(
+            `成功生成 ${(data || []).length} 张卡密`
+        );
+
+
+        await loadDashboard();
+
+    } catch (error) {
 
         console.error(
-            "生成卡密失败：",
+            "生成卡密异常：",
             error
         );
 
         showMessage(
-            "生成失败：" +
-            error.message
+            "生成失败，请检查网络连接"
         );
-
-        return;
     }
-
-
-    const generated =
-        (data || [])
-            .map(
-                item =>
-                    item.card
-            )
-            .join("\n");
-
-
-    const generatedElement =
-        document.getElementById(
-            "generatedCards"
-        );
-
-
-    const resultElement =
-        document.getElementById(
-            "generateResult"
-        );
-
-
-    if (generatedElement) {
-
-        generatedElement.textContent =
-            generated;
-
-    }
-
-
-    if (resultElement) {
-
-        resultElement.style.display =
-            "block";
-
-    }
-
-
-    showMessage(
-        `成功生成 ${(data || []).length} 张卡密`
-    );
-
-
-    await loadDashboard();
 }
 
 
@@ -1841,9 +2090,51 @@ async function copyGeneratedCards() {
 
     try {
 
-        await navigator.clipboard.writeText(
-            text
-        );
+        if (
+            navigator.clipboard &&
+            navigator.clipboard.writeText
+        ) {
+
+            await navigator.clipboard.writeText(
+                text
+            );
+
+        } else {
+
+            const textarea =
+                document.createElement(
+                    "textarea"
+                );
+
+
+            textarea.value =
+                text;
+
+
+            textarea.style.position =
+                "fixed";
+
+            textarea.style.opacity =
+                "0";
+
+
+            document.body.appendChild(
+                textarea
+            );
+
+
+            textarea.select();
+
+
+            document.execCommand(
+                "copy"
+            );
+
+
+            document.body.removeChild(
+                textarea
+            );
+        }
 
 
         showMessage(
@@ -1886,7 +2177,6 @@ function clearGeneratedCards() {
 
         generatedElement.textContent =
             "";
-
     }
 
 
@@ -1894,7 +2184,6 @@ function clearGeneratedCards() {
 
         resultElement.style.display =
             "none";
-
     }
 }
 
@@ -1916,12 +2205,9 @@ function showMessage(message) {
         element.textContent =
             message;
 
-    }
-
-    else {
+    } else {
 
         console.log(message);
-
     }
 }
 
@@ -1967,35 +2253,51 @@ function escapeHTML(value) {
 
 async function checkLogin() {
 
-    const { data, error } =
-        await supabase.auth.getSession();
+    try {
+
+        const {
+            data,
+            error
+        } =
+            await supabase
+                .auth
+                .getSession();
 
 
-    if (error) {
+        if (error) {
+
+            console.error(
+                "检查登录状态失败：",
+                error
+            );
+
+            showLoginPage();
+
+            return;
+        }
+
+
+        if (data.session) {
+
+            showAdminPage();
+
+            await loadDashboard();
+
+            startHeartbeatRefresh();
+
+        } else {
+
+            showLoginPage();
+        }
+
+    } catch (error) {
 
         console.error(
-            "检查登录状态失败：",
+            "启动检查异常：",
             error
         );
 
         showLoginPage();
-
-        return;
-    }
-
-
-    if (data.session) {
-
-        showAdminPage();
-
-        await loadDashboard();
-
-        startHeartbeatRefresh();
-
-    } else {
-
-        showLoginPage();
-
     }
 }
 
@@ -2050,5 +2352,9 @@ window.loadDashboard =
 
 window.addEventListener(
     "DOMContentLoaded",
-    checkLogin
+    () => {
+
+        checkLogin();
+
+    }
 );
