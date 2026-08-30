@@ -206,7 +206,7 @@ async function sendResetEmail() {
 
 
     const redirectUrl =
-        "https://moshushou-ios.github.io/card-admin/";
+    "https://moshushou-ios.github.io/card-admin/reset.html";
 
 
     const { error } =
