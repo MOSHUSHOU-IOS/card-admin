@@ -1657,7 +1657,30 @@ function clearGeneratedCards() {
     ).style.display =
         "none";
 }
+// ==================================================
+// 消息提示
+// ==================================================
 
+function showMessage(message) {
+
+    const element =
+        document.getElementById("message");
+
+    if (element) {
+
+        element.textContent = message;
+
+    }
+}
+
+
+// ==================================================
+// HTML 安全处理
+// ==================================================
+
+function escapeHTML(value) {
+
+    ...
 
 // ==================================================
 // HTML 安全处理
