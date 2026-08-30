@@ -13,6 +13,16 @@ const supabase =
 
 
 // ==================================================
+// 心跳设置
+// ==================================================
+
+const HEARTBEAT_TIMEOUT = 5000;
+const HEARTBEAT_REFRESH_INTERVAL = 2000;
+
+let heartbeatTimer = null;
+
+
+// ==================================================
 // 登录
 // ==================================================
 
@@ -62,6 +72,8 @@ async function login() {
 
 
     await loadDashboard();
+
+    startHeartbeatRefresh();
 }
 
 
@@ -104,6 +116,9 @@ function showLoginPage() {
 // ==================================================
 
 async function logout() {
+
+    stopHeartbeatRefresh();
+
 
     await supabase.auth.signOut();
 
@@ -416,6 +431,8 @@ async function loadDashboard() {
     renderCards(cards);
 
     renderStock(cards);
+
+    await loadHeartbeats(cards);
 }
 
 
@@ -638,6 +655,361 @@ function renderStock(cards) {
         if (expiredElement)
             expiredElement.textContent =
                 expired;
+    }
+}
+
+
+// ==================================================
+// 心跳读取
+// ==================================================
+
+async function loadHeartbeats(cards) {
+
+    const tbody =
+        document.getElementById(
+            "onlineTableBody"
+        );
+
+
+    if (!tbody)
+        return;
+
+
+    const { data, error } =
+        await supabase
+
+            .from("card_heartbeats")
+
+            .select(
+                "card, device_id, last_heartbeat"
+            );
+
+
+    if (error) {
+
+        console.error(
+            "读取心跳失败：",
+            error
+        );
+
+
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7">
+                    读取心跳失败：
+                    ${escapeHTML(error.message)}
+                </td>
+            </tr>
+        `;
+
+        return;
+    }
+
+
+    const heartbeats =
+        data || [];
+
+
+    const now =
+        Date.now();
+
+
+    const cardMap =
+        new Map();
+
+
+    cards.forEach(card => {
+
+        cardMap.set(
+            card.card,
+            card
+        );
+
+    });
+
+
+    const rows = [];
+
+
+    heartbeats.forEach(heartbeat => {
+
+        const card =
+            cardMap.get(
+                heartbeat.card
+            );
+
+
+        if (!card)
+            return;
+
+
+        const heartbeatTime =
+            new Date(
+                heartbeat.last_heartbeat
+            ).getTime();
+
+
+        if (
+            Number.isNaN(
+                heartbeatTime
+            )
+        )
+            return;
+
+
+        const elapsed =
+            now - heartbeatTime;
+
+
+        const online =
+            elapsed <=
+            HEARTBEAT_TIMEOUT;
+
+
+        rows.push({
+
+            heartbeat,
+
+            card,
+
+            online,
+
+            elapsed
+
+        });
+
+    });
+
+
+    rows.sort(
+        (a, b) => {
+
+            if (
+                a.online !==
+                b.online
+            ) {
+
+                return a.online
+                    ? -1
+                    : 1;
+            }
+
+
+            return (
+                new Date(
+                    b.heartbeat.last_heartbeat
+                ).getTime()
+                -
+                new Date(
+                    a.heartbeat.last_heartbeat
+                ).getTime()
+            );
+        }
+    );
+
+
+    renderHeartbeatRows(rows);
+}
+
+
+// ==================================================
+// 显示心跳列表
+// ==================================================
+
+function renderHeartbeatRows(rows) {
+
+    const tbody =
+        document.getElementById(
+            "onlineTableBody"
+        );
+
+
+    if (!tbody)
+        return;
+
+
+    tbody.innerHTML = "";
+
+
+    if (rows.length === 0) {
+
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="7">
+                    暂无心跳数据
+                </td>
+            </tr>
+        `;
+
+        return;
+    }
+
+
+    rows.forEach(item => {
+
+        const heartbeat =
+            item.heartbeat;
+
+        const card =
+            item.card;
+
+        const row =
+            document.createElement(
+                "tr"
+            );
+
+
+        const statusHTML =
+            item.online
+
+                ? `
+                    <span class="online">
+                        🟢 在线
+                    </span>
+                  `
+
+                : `
+                    <span class="offline">
+                        ⚪ 离线
+                    </span>
+                  `;
+
+
+        row.innerHTML = `
+
+            <td>
+                ${escapeHTML(
+                    heartbeat.card
+                )}
+            </td>
+
+            <td>
+                ${getCardType(
+                    card.duration_days
+                )}
+            </td>
+
+            <td>
+                ${escapeHTML(
+                    heartbeat.device_id ||
+                    card.device_id ||
+                    "未记录"
+                )}
+            </td>
+
+            <td>
+                ${formatTime(
+                    heartbeat.last_heartbeat
+                )}
+            </td>
+
+            <td>
+                ${formatTime(
+                    card.activated_at
+                )}
+            </td>
+
+            <td>
+                ${formatTime(
+                    card.expires_at
+                )}
+            </td>
+
+            <td>
+                ${statusHTML}
+            </td>
+
+        `;
+
+
+        tbody.appendChild(row);
+
+    });
+}
+
+
+// ==================================================
+// 自动刷新心跳
+// ==================================================
+
+function startHeartbeatRefresh() {
+
+    stopHeartbeatRefresh();
+
+
+    heartbeatTimer =
+        setInterval(
+            async () => {
+
+                const { data } =
+                    await supabase.auth.getSession();
+
+
+                if (!data.session) {
+
+                    stopHeartbeatRefresh();
+
+                    return;
+                }
+
+
+                await loadHeartbeatOnly();
+
+            },
+
+            HEARTBEAT_REFRESH_INTERVAL
+        );
+}
+
+
+// ==================================================
+// 只刷新心跳
+// ==================================================
+
+async function loadHeartbeatOnly() {
+
+    const { data, error } =
+        await supabase
+
+            .from("cards")
+
+            .select(
+                "card, duration_days, status, created_at, activated_at, expires_at, device_id"
+            );
+
+
+    if (error) {
+
+        console.error(
+            "刷新卡密失败：",
+            error
+        );
+
+        return;
+    }
+
+
+    await loadHeartbeats(
+        data || []
+    );
+}
+
+
+// ==================================================
+// 停止自动刷新
+// ==================================================
+
+function stopHeartbeatRefresh() {
+
+    if (
+        heartbeatTimer
+    ) {
+
+        clearInterval(
+            heartbeatTimer
+        );
+
+        heartbeatTimer = null;
     }
 }
 
@@ -1337,6 +1709,8 @@ async function checkLogin() {
         showAdminPage();
 
         await loadDashboard();
+
+        startHeartbeatRefresh();
 
     } else {
 
