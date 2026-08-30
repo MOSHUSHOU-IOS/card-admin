@@ -498,6 +498,8 @@
             管理员后台
         </div>
 
+        <!-- 管理员邮箱 -->
+
         <div class="form-group">
 
             <label>管理员邮箱</label>
@@ -509,6 +511,8 @@
             >
 
         </div>
+
+        <!-- 管理员密码 -->
 
         <div class="form-group">
 
@@ -534,106 +538,41 @@
 
         </div>
 
+        <!-- 登录 -->
+
         <button
+            type="button"
             class="primary-button login-button"
             onclick="login()"
         >
             登录
         </button>
 
-        <div id="message" class="message"></div>
-<!-- ==================== 忘记密码 ==================== -->
+        <!-- 消息 -->
 
-<div
-    id="forgotPasswordBox"
-    style="
-        display: none;
-        margin-top: 20px;
-        padding-top: 20px;
-        border-top: 1px solid #e5e7eb;
-    "
->
+        <div
+            id="message"
+            class="message"
+        ></div>
 
-    <div
-        style="
-            font-size: 16px;
-            font-weight: 700;
-            margin-bottom: 12px;
-        "
-    >
-        🔐 重置管理员密码
-    </div>
 
-    <div
-        style="
-            color: #6b7280;
-            font-size: 13px;
-            line-height: 1.6;
-            margin-bottom: 15px;
-        "
-    >
-        系统会向你的管理员邮箱发送密码重置链接。
-        请打开邮件中的链接，然后设置新的密码。
-    </div>
+        <!-- ==================== 忘记密码 ==================== -->
 
-    <button
-        type="button"
-        class="primary-button login-button"
-        onclick="sendResetEmail()"
-    >
-        📧 发送重置邮件
-    </button>
-
-    <div
-        id="resetPasswordBox"
-        style="
-            display: none;
-            margin-top: 18px;
-        "
-    >
-
-        <div class="form-group">
-
-            <label>新密码</label>
-
-            <input
-                id="newPassword"
-                type="password"
-                placeholder="请输入新密码"
-            >
-
-        </div>
-
-        <div class="form-group">
-
-            <label>确认新密码</label>
-
-            <input
-                id="confirmPassword"
-                type="password"
-                placeholder="再次输入新密码"
-            >
-
-        </div>
-
-        <button
-            type="button"
-            class="primary-button login-button"
-            onclick="resetPassword()"
+        <div
+            id="forgotPasswordBox"
+            class="forgot-box"
         >
-            修改密码
-        </button>
 
-    </div>
-
-</div>
-
-        
+            <div class="forgot-title">
+                🔐 重置管理员密码
+            </div>
 
             <div class="forgot-tip">
                 系统会向你的管理员邮箱发送密码重置链接。
                 请打开邮件中的链接，然后设置新的密码。
             </div>
+
+            <!-- 发送重置邮件 -->
 
             <button
                 type="button"
@@ -642,6 +581,9 @@
             >
                 📧 发送重置邮件
             </button>
+
+
+            <!-- ==================== 设置新密码 ==================== -->
 
             <div
                 id="resetPasswordBox"
@@ -712,6 +654,7 @@
             </div>
 
             <button
+                type="button"
                 class="logout-button"
                 onclick="logout()"
             >
@@ -724,6 +667,8 @@
 
 
     <main class="container">
+
+        <!-- ==================== 欢迎 ==================== -->
 
         <section class="welcome">
 
@@ -861,6 +806,7 @@
 
 
                     <button
+                        type="button"
                         class="primary-button"
                         onclick="generateCards()"
                     >
@@ -883,6 +829,7 @@
                     <div class="result-actions">
 
                         <button
+                            type="button"
                             class="primary-button"
                             onclick="copyGeneratedCards()"
                         >
@@ -890,6 +837,7 @@
                         </button>
 
                         <button
+                            type="button"
                             class="secondary-button"
                             onclick="clearGeneratedCards()"
                         >
@@ -924,6 +872,7 @@
                     >
 
                     <button
+                        type="button"
                         class="primary-button"
                         onclick="searchCard()"
                     >
@@ -1126,6 +1075,7 @@
                     </p>
 
                     <button
+                        type="button"
                         class="primary-button"
                         onclick="showUnusedCards()"
                     >
@@ -1144,6 +1094,7 @@
                     </p>
 
                     <button
+                        type="button"
                         class="primary-button"
                         onclick="showActiveCards()"
                     >
@@ -1162,6 +1113,7 @@
                     </p>
 
                     <button
+                        type="button"
                         class="primary-button"
                         onclick="showExpiredCards()"
                     >
@@ -1180,6 +1132,7 @@
                     </p>
 
                     <button
+                        type="button"
                         class="primary-button"
                         onclick="loadDashboard()"
                     >
@@ -1201,6 +1154,8 @@
 
 </div>
 
+
+<!-- ==================== JS ==================== -->
 
 <script src="app.js"></script>
 
