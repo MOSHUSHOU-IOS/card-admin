@@ -1,3 +1,7 @@
+// ==================================================
+// Supabase 配置
+// ==================================================
+
 const SUPABASE_URL =
     "https://dmdnnbjbjhjedzodmlft.supabase.co";
 
@@ -6,14 +10,60 @@ const SUPABASE_KEY =
 
 
 // ==================================================
-// Supabase
+// Supabase 初始化
 // ==================================================
 
-const supabase =
-    window.supabase.createClient(
-        SUPABASE_URL,
-        SUPABASE_KEY
-    );
+let supabase = null;
+
+function initSupabase() {
+
+    try {
+
+        if (
+            !window.supabase ||
+            typeof window.supabase.createClient !== "function"
+        ) {
+
+            console.error(
+                "Supabase JS SDK 未加载"
+            );
+
+            showMessage(
+                "系统错误：Supabase 未加载"
+            );
+
+            return false;
+        }
+
+
+        supabase =
+            window.supabase.createClient(
+                SUPABASE_URL,
+                SUPABASE_KEY
+            );
+
+
+        console.log(
+            "Supabase 初始化成功"
+        );
+
+
+        return true;
+
+    } catch (error) {
+
+        console.error(
+            "Supabase 初始化失败：",
+            error
+        );
+
+        showMessage(
+            "Supabase 初始化失败"
+        );
+
+        return false;
+    }
+}
 
 
 // ==================================================
@@ -21,11 +71,13 @@ const supabase =
 // ==================================================
 
 const HEARTBEAT_TIMEOUT = 5000;
+
 const HEARTBEAT_REFRESH_INTERVAL = 2000;
 
 let heartbeatTimer = null;
 
 let dashboardLoading = false;
+
 let heartbeatLoading = false;
 
 
@@ -35,41 +87,104 @@ let heartbeatLoading = false;
 
 async function login() {
 
-    const emailElement =
-        document.getElementById("email");
-
-    const passwordElement =
-        document.getElementById("password");
-
-    const email =
-        emailElement
-            ? emailElement.value.trim()
-            : "";
-
-    const password =
-        passwordElement
-            ? passwordElement.value
-            : "";
+    console.log(
+        "login() 被调用"
+    );
 
 
-    if (!email || !password) {
+    if (!supabase) {
 
-        showMessage("请输入邮箱和密码");
+        showMessage(
+            "系统尚未初始化，请刷新页面"
+        );
+
+        console.error(
+            "Supabase 实例不存在"
+        );
 
         return;
     }
 
 
-    showMessage("正在登录...");
+    const emailElement =
+        document.getElementById(
+            "email"
+        );
+
+
+    const passwordElement =
+        document.getElementById(
+            "password"
+        );
+
+
+    if (!emailElement || !passwordElement) {
+
+        showMessage(
+            "找不到邮箱或密码输入框"
+        );
+
+        console.error(
+            "缺少 #email 或 #password"
+        );
+
+        return;
+    }
+
+
+    const email =
+        emailElement.value.trim();
+
+
+    const password =
+        passwordElement.value;
+
+
+    if (!email || !password) {
+
+        showMessage(
+            "请输入邮箱和密码"
+        );
+
+        return;
+    }
+
+
+    showMessage(
+        "正在登录..."
+    );
 
 
     try {
 
-        const { error } =
+        console.log(
+            "正在请求 Supabase 登录..."
+        );
+
+
+        const result =
             await supabase.auth.signInWithPassword({
-                email,
-                password
+
+                email:
+                    email,
+
+                password:
+                    password
+
             });
+
+
+        console.log(
+            "登录返回：",
+            result
+        );
+
+
+        const data =
+            result.data;
+
+        const error =
+            result.error;
 
 
         if (error) {
@@ -78,6 +193,7 @@ async function login() {
                 "登录失败：",
                 error
             );
+
 
             showMessage(
                 "登录失败：" +
@@ -88,12 +204,36 @@ async function login() {
         }
 
 
-        showMessage("登录成功");
+        if (!data || !data.session) {
+
+            console.error(
+                "登录成功但没有 session"
+            );
+
+            showMessage(
+                "登录失败：未获取到登录会话"
+            );
+
+            return;
+        }
+
+
+        console.log(
+            "登录成功",
+            data.user
+        );
+
+
+        showMessage(
+            "登录成功"
+        );
+
 
         showAdminPage();
 
 
         await loadDashboard();
+
 
         startHeartbeatRefresh();
 
@@ -104,8 +244,13 @@ async function login() {
             error
         );
 
+
         showMessage(
-            "登录失败，请检查网络连接"
+            "登录异常：" +
+            (
+                error.message ||
+                "请检查网络连接"
+            )
         );
     }
 }
@@ -118,10 +263,15 @@ async function login() {
 function showAdminPage() {
 
     const loginPage =
-        document.getElementById("loginPage");
+        document.getElementById(
+            "loginPage"
+        );
+
 
     const adminPage =
-        document.getElementById("adminPage");
+        document.getElementById(
+            "adminPage"
+        );
 
 
     if (loginPage) {
@@ -146,10 +296,15 @@ function showAdminPage() {
 function showLoginPage() {
 
     const loginPage =
-        document.getElementById("loginPage");
+        document.getElementById(
+            "loginPage"
+        );
+
 
     const adminPage =
-        document.getElementById("adminPage");
+        document.getElementById(
+            "adminPage"
+        );
 
 
     if (adminPage) {
@@ -176,9 +331,27 @@ async function logout() {
     stopHeartbeatRefresh();
 
 
+    if (!supabase) {
+
+        showLoginPage();
+
+        return;
+    }
+
+
     try {
 
-        await supabase.auth.signOut();
+        const { error } =
+            await supabase.auth.signOut();
+
+
+        if (error) {
+
+            console.error(
+                "退出失败：",
+                error
+            );
+        }
 
     } catch (error) {
 
@@ -193,12 +366,15 @@ async function logout() {
 
 
     const password =
-        document.getElementById("password");
+        document.getElementById(
+            "password"
+        );
 
 
     if (password) {
 
-        password.value = "";
+        password.value =
+            "";
     }
 }
 
@@ -230,7 +406,9 @@ function showForgotPassword() {
 
 
     const emailElement =
-        document.getElementById("email");
+        document.getElementById(
+            "email"
+        );
 
 
     const email =
@@ -260,8 +438,20 @@ function showForgotPassword() {
 
 async function sendResetEmail() {
 
+    if (!supabase) {
+
+        showMessage(
+            "系统尚未初始化"
+        );
+
+        return;
+    }
+
+
     const emailElement =
-        document.getElementById("email");
+        document.getElementById(
+            "email"
+        );
 
 
     const email =
@@ -293,20 +483,24 @@ async function sendResetEmail() {
 
         const { error } =
             await supabase.auth.resetPasswordForEmail(
+
                 email,
+
                 {
                     redirectTo:
                         redirectUrl
                 }
+
             );
 
 
         if (error) {
 
             console.error(
-                "发送重置邮件失败：",
+                "发送密码重置邮件失败：",
                 error
             );
+
 
             showMessage(
                 "发送失败：" +
@@ -328,62 +522,89 @@ async function sendResetEmail() {
             error
         );
 
+
         showMessage(
-            "发送失败，请检查网络连接"
+            "发送失败：" +
+            (
+                error.message ||
+                "请检查网络连接"
+            )
         );
     }
 }
 
 
 // ==================================================
-// 密码恢复事件
+// 密码恢复
 // ==================================================
 
-supabase.auth.onAuthStateChange(
-    async (event, session) => {
+if (
+    typeof window !== "undefined"
+) {
 
-        console.log(
-            "Supabase Auth Event:",
-            event
-        );
+    window.addEventListener(
+        "load",
+        () => {
 
+            if (!supabase) {
 
-        if (
-            event === "PASSWORD_RECOVERY"
-        ) {
-
-            const box =
-                document.getElementById(
-                    "forgotPasswordBox"
-                );
-
-
-            const resetBox =
-                document.getElementById(
-                    "resetPasswordBox"
-                );
-
-
-            if (box) {
-
-                box.style.display =
-                    "block";
+                return;
             }
 
 
-            if (resetBox) {
+            supabase.auth.onAuthStateChange(
 
-                resetBox.style.display =
-                    "block";
-            }
+                async (
+                    event,
+                    session
+                ) => {
+
+                    console.log(
+                        "Supabase Auth Event:",
+                        event
+                    );
 
 
-            showMessage(
-                "请输入新的管理员密码"
+                    if (
+                        event ===
+                        "PASSWORD_RECOVERY"
+                    ) {
+
+                        const box =
+                            document.getElementById(
+                                "forgotPasswordBox"
+                            );
+
+
+                        const resetBox =
+                            document.getElementById(
+                                "resetPasswordBox"
+                            );
+
+
+                        if (box) {
+
+                            box.style.display =
+                                "block";
+                        }
+
+
+                        if (resetBox) {
+
+                            resetBox.style.display =
+                                "block";
+                        }
+
+
+                        showMessage(
+                            "请输入新的管理员密码"
+                        );
+                    }
+                }
             );
         }
-    }
-);
+    );
+}
 
 
 // ==================================================
@@ -391,6 +612,16 @@ supabase.auth.onAuthStateChange(
 // ==================================================
 
 async function resetPassword() {
+
+    if (!supabase) {
+
+        showMessage(
+            "系统尚未初始化"
+        );
+
+        return;
+    }
+
 
     const newPasswordElement =
         document.getElementById(
@@ -463,8 +694,10 @@ async function resetPassword() {
 
         const { error } =
             await supabase.auth.updateUser({
+
                 password:
                     newPassword
+
             });
 
 
@@ -474,6 +707,7 @@ async function resetPassword() {
                 "修改密码失败：",
                 error
             );
+
 
             showMessage(
                 "修改密码失败：" +
@@ -505,6 +739,7 @@ async function resetPassword() {
 
         await supabase.auth.signOut();
 
+
         showLoginPage();
 
     } catch (error) {
@@ -514,8 +749,13 @@ async function resetPassword() {
             error
         );
 
+
         showMessage(
-            "修改密码失败，请稍后再试"
+            "修改密码失败：" +
+            (
+                error.message ||
+                "请稍后再试"
+            )
         );
     }
 }
@@ -527,27 +767,38 @@ async function resetPassword() {
 
 async function loadDashboard() {
 
+    if (!supabase) {
+
+        return;
+    }
+
+
     if (dashboardLoading) {
 
         return;
     }
 
 
-    dashboardLoading = true;
+    dashboardLoading =
+        true;
 
 
     try {
 
         const { data, error } =
             await supabase
+
                 .from("cards")
+
                 .select(
                     "card, duration_days, status, created_at, activated_at, expires_at, device_id"
                 )
+
                 .order(
                     "created_at",
                     {
-                        ascending: false
+                        ascending:
+                            false
                     }
                 );
 
@@ -559,10 +810,12 @@ async function loadDashboard() {
                 error
             );
 
+
             showMessage(
                 "读取卡密失败：" +
                 error.message
             );
+
 
             return;
         }
@@ -572,13 +825,24 @@ async function loadDashboard() {
             data || [];
 
 
-        updateStatistics(cards);
+        updateStatistics(
+            cards
+        );
 
-        renderCards(cards);
 
-        renderStock(cards);
+        renderCards(
+            cards
+        );
 
-        await loadHeartbeats(cards);
+
+        renderStock(
+            cards
+        );
+
+
+        await loadHeartbeats(
+            cards
+        );
 
     } catch (error) {
 
@@ -587,8 +851,13 @@ async function loadDashboard() {
             error
         );
 
+
         showMessage(
-            "后台加载失败，请检查网络连接"
+            "后台加载失败：" +
+            (
+                error.message ||
+                "请检查网络连接"
+            )
         );
 
     } finally {
@@ -612,21 +881,24 @@ function updateStatistics(cards) {
     const unused =
         cards.filter(
             card =>
-                card.status === "unused"
+                card.status ===
+                "unused"
         ).length;
 
 
     const active =
         cards.filter(
             card =>
-                card.status === "active"
+                card.status ===
+                "active"
         ).length;
 
 
     const expired =
         cards.filter(
             card =>
-                card.status === "expired"
+                card.status ===
+                "expired"
         ).length;
 
 
@@ -721,58 +993,62 @@ function renderCards(cards) {
 
     cards
         .slice(0, 20)
-        .forEach(card => {
+        .forEach(
+            card => {
 
-            const row =
-                document.createElement(
-                    "tr"
+                const row =
+                    document.createElement(
+                        "tr"
+                    );
+
+
+                row.innerHTML = `
+
+                    <td>
+                        ${escapeHTML(
+                            card.card
+                        )}
+                    </td>
+
+                    <td>
+                        ${getCardType(
+                            card.duration_days
+                        )}
+                    </td>
+
+                    <td>
+                        ${getStatusHTML(
+                            card.status
+                        )}
+                    </td>
+
+                    <td>
+                        ${formatTime(
+                            card.activated_at
+                        )}
+                    </td>
+
+                    <td>
+                        ${formatTime(
+                            card.expires_at
+                        )}
+                    </td>
+
+                    <td>
+                        ${escapeHTML(
+                            card.device_id ||
+                            "未记录"
+                        )}
+                    </td>
+
+                `;
+
+
+                tbody.appendChild(
+                    row
                 );
-
-
-            row.innerHTML = `
-
-                <td>
-                    ${escapeHTML(
-                        card.card
-                    )}
-                </td>
-
-                <td>
-                    ${getCardType(
-                        card.duration_days
-                    )}
-                </td>
-
-                <td>
-                    ${getStatusHTML(
-                        card.status
-                    )}
-                </td>
-
-                <td>
-                    ${formatTime(
-                        card.activated_at
-                    )}
-                </td>
-
-                <td>
-                    ${formatTime(
-                        card.expires_at
-                    )}
-                </td>
-
-                <td>
-                    ${escapeHTML(
-                        card.device_id ||
-                        "未记录"
-                    )}
-                </td>
-
-            `;
-
-
-            tbody.appendChild(row);
-        });
+            }
+        );
 }
 
 
@@ -784,11 +1060,14 @@ function renderStock(cards) {
 
     const types = {
 
-        day: 1,
+        day:
+            1,
 
-        week: 7,
+        week:
+            7,
 
-        month: 30
+        month:
+            30
 
     };
 
@@ -805,7 +1084,7 @@ function renderStock(cards) {
                         card.duration_days
                     ) === days &&
                     card.status ===
-                        "unused"
+                    "unused"
             ).length;
 
 
@@ -816,7 +1095,7 @@ function renderStock(cards) {
                         card.duration_days
                     ) === days &&
                     card.status ===
-                        "active"
+                    "active"
             ).length;
 
 
@@ -827,7 +1106,7 @@ function renderStock(cards) {
                         card.duration_days
                     ) === days &&
                     card.status ===
-                        "expired"
+                    "expired"
             ).length;
 
 
@@ -878,6 +1157,12 @@ function renderStock(cards) {
 
 async function loadHeartbeats(cards) {
 
+    if (!supabase) {
+
+        return;
+    }
+
+
     const tbody =
         document.getElementById(
             "onlineTableBody"
@@ -892,7 +1177,9 @@ async function loadHeartbeats(cards) {
 
     const { data, error } =
         await supabase
+
             .from("card_heartbeats")
+
             .select(
                 "card, device_id, last_heartbeat"
             );
@@ -933,13 +1220,16 @@ async function loadHeartbeats(cards) {
         new Map();
 
 
-    cards.forEach(card => {
+    cards.forEach(
+        card => {
 
-        cardMap.set(
-            card.card,
-            card
-        );
-    });
+            cardMap.set(
+                card.card,
+                card
+            );
+
+        }
+    );
 
 
     const rows = [];
@@ -988,18 +1278,29 @@ async function loadHeartbeats(cards) {
 
             rows.push({
 
-                heartbeat,
-                card,
-                online,
-                elapsed
+                heartbeat:
+                    heartbeat,
+
+                card:
+                    card,
+
+                online:
+                    online,
+
+                elapsed:
+                    elapsed
 
             });
+
         }
     );
 
 
     rows.sort(
-        (a, b) => {
+        (
+            a,
+            b
+        ) => {
 
             if (
                 a.online !==
@@ -1027,12 +1328,14 @@ async function loadHeartbeats(cards) {
     );
 
 
-    renderHeartbeatRows(rows);
+    renderHeartbeatRows(
+        rows
+    );
 }
 
 
 // ==================================================
-// 显示心跳列表
+// 显示心跳
 // ==================================================
 
 function renderHeartbeatRows(rows) {
@@ -1067,87 +1370,92 @@ function renderHeartbeatRows(rows) {
     }
 
 
-    rows.forEach(item => {
+    rows.forEach(
+        item => {
 
-        const heartbeat =
-            item.heartbeat;
-
-
-        const card =
-            item.card;
+            const heartbeat =
+                item.heartbeat;
 
 
-        const row =
-            document.createElement(
-                "tr"
+            const card =
+                item.card;
+
+
+            const row =
+                document.createElement(
+                    "tr"
+                );
+
+
+            const statusHTML =
+                item.online
+
+                    ? `
+                        <span class="online">
+                            🟢 在线
+                        </span>
+                      `
+
+                    : `
+                        <span class="offline">
+                            ⚪ 离线
+                        </span>
+                      `;
+
+
+            row.innerHTML = `
+
+                <td>
+                    ${escapeHTML(
+                        heartbeat.card
+                    )}
+                </td>
+
+                <td>
+                    ${getCardType(
+                        card.duration_days
+                    )}
+                </td>
+
+                <td>
+                    ${escapeHTML(
+                        heartbeat.device_id ||
+                        card.device_id ||
+                        "未记录"
+                    )}
+                </td>
+
+                <td>
+                    ${formatTime(
+                        heartbeat.last_heartbeat
+                    )}
+                </td>
+
+                <td>
+                    ${formatTime(
+                        card.activated_at
+                    )}
+                </td>
+
+                <td>
+                    ${formatTime(
+                        card.expires_at
+                    )}
+                </td>
+
+                <td>
+                    ${statusHTML}
+                </td>
+
+            `;
+
+
+            tbody.appendChild(
+                row
             );
 
-
-        const statusHTML =
-            item.online
-
-                ? `
-                    <span class="online">
-                        🟢 在线
-                    </span>
-                  `
-
-                : `
-                    <span class="offline">
-                        ⚪ 离线
-                    </span>
-                  `;
-
-
-        row.innerHTML = `
-
-            <td>
-                ${escapeHTML(
-                    heartbeat.card
-                )}
-            </td>
-
-            <td>
-                ${getCardType(
-                    card.duration_days
-                )}
-            </td>
-
-            <td>
-                ${escapeHTML(
-                    heartbeat.device_id ||
-                    card.device_id ||
-                    "未记录"
-                )}
-            </td>
-
-            <td>
-                ${formatTime(
-                    heartbeat.last_heartbeat
-                )}
-            </td>
-
-            <td>
-                ${formatTime(
-                    card.activated_at
-                )}
-            </td>
-
-            <td>
-                ${formatTime(
-                    card.expires_at
-                )}
-            </td>
-
-            <td>
-                ${statusHTML}
-            </td>
-
-        `;
-
-
-        tbody.appendChild(row);
-    });
+        }
+    );
 }
 
 
@@ -1177,6 +1485,12 @@ function startHeartbeatRefresh() {
 
 
                 try {
+
+                    if (!supabase) {
+
+                        return;
+                    }
+
 
                     const {
                         data,
@@ -1226,6 +1540,7 @@ function startHeartbeatRefresh() {
                 }
 
             },
+
             HEARTBEAT_REFRESH_INTERVAL
         );
 }
@@ -1237,9 +1552,17 @@ function startHeartbeatRefresh() {
 
 async function loadHeartbeatOnly() {
 
+    if (!supabase) {
+
+        return;
+    }
+
+
     const { data, error } =
         await supabase
+
             .from("cards")
+
             .select(
                 "card, duration_days, status, created_at, activated_at, expires_at, device_id"
             );
@@ -1276,6 +1599,7 @@ function stopHeartbeatRefresh() {
             heartbeatTimer
         );
 
+
         heartbeatTimer =
             null;
     }
@@ -1287,6 +1611,16 @@ function stopHeartbeatRefresh() {
 // ==================================================
 
 async function searchCard() {
+
+    if (!supabase) {
+
+        showMessage(
+            "系统尚未初始化"
+        );
+
+        return;
+    }
+
 
     const input =
         document.getElementById(
@@ -1325,16 +1659,23 @@ async function searchCard() {
 
     try {
 
-        const { data, error } =
+        const {
+            data,
+            error
+        } =
             await supabase
+
                 .from("cards")
+
                 .select(
                     "card, duration_days, status, created_at, activated_at, expires_at, device_id"
                 )
+
                 .eq(
                     "card",
                     card
                 )
+
                 .maybeSingle();
 
 
@@ -1344,6 +1685,7 @@ async function searchCard() {
                 "查询卡密失败：",
                 error
             );
+
 
             result.innerHTML =
                 "查询失败：" +
@@ -1422,8 +1764,13 @@ async function searchCard() {
             error
         );
 
+
         result.innerHTML =
-            "查询失败，请稍后再试";
+            "查询失败：" +
+            (
+                error.message ||
+                "请稍后再试"
+            );
     }
 }
 
@@ -1437,22 +1784,40 @@ async function showCardsByStatus(
     title
 ) {
 
+    if (!supabase) {
+
+        showMessage(
+            "系统尚未初始化"
+        );
+
+        return;
+    }
+
+
     try {
 
-        const { data, error } =
+        const {
+            data,
+            error
+        } =
             await supabase
+
                 .from("cards")
+
                 .select(
                     "card, duration_days, status, created_at, activated_at, expires_at, device_id"
                 )
+
                 .eq(
                     "status",
                     status
                 )
+
                 .order(
                     "created_at",
                     {
-                        ascending: false
+                        ascending:
+                            false
                     }
                 );
 
@@ -1464,10 +1829,12 @@ async function showCardsByStatus(
                 error
             );
 
+
             showMessage(
                 "查询失败：" +
                 error.message
             );
+
 
             return;
         }
@@ -1515,58 +1882,63 @@ async function showCardsByStatus(
         }
 
 
-        cards.forEach(card => {
+        cards.forEach(
+            card => {
 
-            const row =
-                document.createElement(
-                    "tr"
+                const row =
+                    document.createElement(
+                        "tr"
+                    );
+
+
+                row.innerHTML = `
+
+                    <td>
+                        ${escapeHTML(
+                            card.card
+                        )}
+                    </td>
+
+                    <td>
+                        ${getCardType(
+                            card.duration_days
+                        )}
+                    </td>
+
+                    <td>
+                        ${getStatusHTML(
+                            card.status
+                        )}
+                    </td>
+
+                    <td>
+                        ${formatTime(
+                            card.activated_at
+                        )}
+                    </td>
+
+                    <td>
+                        ${formatTime(
+                            card.expires_at
+                        )}
+                    </td>
+
+                    <td>
+                        ${escapeHTML(
+                            card.device_id ||
+                            "未记录"
+                        )}
+                    </td>
+
+                `;
+
+
+                tbody.appendChild(
+                    row
                 );
 
-
-            row.innerHTML = `
-
-                <td>
-                    ${escapeHTML(
-                        card.card
-                    )}
-                </td>
-
-                <td>
-                    ${getCardType(
-                        card.duration_days
-                    )}
-                </td>
-
-                <td>
-                    ${getStatusHTML(
-                        card.status
-                    )}
-                </td>
-
-                <td>
-                    ${formatTime(
-                        card.activated_at
-                    )}
-                </td>
-
-                <td>
-                    ${formatTime(
-                        card.expires_at
-                    )}
-                </td>
-
-                <td>
-                    ${escapeHTML(
-                        card.device_id ||
-                        "未记录"
-                    )}
-                </td>
-
-            `;
-
-
-            tbody.appendChild(row);
-        });
+            }
+        );
 
 
         showMessage(
@@ -1580,8 +1952,13 @@ async function showCardsByStatus(
             error
         );
 
+
         showMessage(
-            "查询失败，请稍后再试"
+            "查询失败：" +
+            (
+                error.message ||
+                "请稍后再试"
+            )
         );
     }
 }
@@ -1653,7 +2030,8 @@ function getCardType(days) {
 function getStatusHTML(status) {
 
     if (
-        status === "unused"
+        status ===
+        "unused"
     ) {
 
         return `
@@ -1665,7 +2043,8 @@ function getStatusHTML(status) {
 
 
     if (
-        status === "active"
+        status ===
+        "active"
     ) {
 
         return `
@@ -1677,7 +2056,8 @@ function getStatusHTML(status) {
 
 
     if (
-        status === "expired"
+        status ===
+        "expired"
     ) {
 
         return `
@@ -1752,6 +2132,7 @@ function formatTime(value) {
 
             hour12:
                 false
+
         }
     );
 }
@@ -1761,7 +2142,9 @@ function formatTime(value) {
 // 随机字符串
 // ==================================================
 
-function randomPart(length = 4) {
+function randomPart(
+    length = 4
+) {
 
     const chars =
         "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -1854,6 +2237,16 @@ function generateCardCode(type) {
 
 async function generateCards() {
 
+    if (!supabase) {
+
+        showMessage(
+            "系统尚未初始化"
+        );
+
+        return;
+    }
+
+
     const typeElement =
         document.getElementById(
             "generateType"
@@ -1905,11 +2298,14 @@ async function generateCards() {
 
     const durationMap = {
 
-        day: 1,
+        day:
+            1,
 
-        week: 7,
+        week:
+            7,
 
-        month: 30
+        month:
+            30
 
     };
 
@@ -1930,31 +2326,39 @@ async function generateCards() {
 
     const cards = [];
 
+
     const generatedCodes =
         new Set();
 
 
     // ==================================================
-    // 本批次内部防重复
+    // 本批次防重复
     // ==================================================
 
     while (
-        cards.length < count
+        cards.length <
+        count
     ) {
 
         const code =
-            generateCardCode(type);
+            generateCardCode(
+                type
+            );
 
 
         if (
-            generatedCodes.has(code)
+            generatedCodes.has(
+                code
+            )
         ) {
 
             continue;
         }
 
 
-        generatedCodes.add(code);
+        generatedCodes.add(
+            code
+        );
 
 
         cards.push({
@@ -1979,10 +2383,18 @@ async function generateCards() {
 
     try {
 
-        const { data, error } =
+        const {
+            data,
+            error
+        } =
             await supabase
+
                 .from("cards")
-                .insert(cards)
+
+                .insert(
+                    cards
+                )
+
                 .select(
                     "card"
                 );
@@ -1995,10 +2407,12 @@ async function generateCards() {
                 error
             );
 
+
             showMessage(
                 "生成失败：" +
                 error.message
             );
+
 
             return;
         }
@@ -2006,10 +2420,12 @@ async function generateCards() {
 
         const generated =
             (data || [])
+
                 .map(
                     item =>
                         item.card
                 )
+
                 .join("\n");
 
 
@@ -2053,15 +2469,20 @@ async function generateCards() {
             error
         );
 
+
         showMessage(
-            "生成失败，请检查网络连接"
+            "生成失败：" +
+            (
+                error.message ||
+                "请检查网络连接"
+            )
         );
     }
 }
 
 
 // ==================================================
-// 复制生成的卡密
+// 复制卡密
 // ==================================================
 
 async function copyGeneratedCards() {
@@ -2114,6 +2535,7 @@ async function copyGeneratedCards() {
             textarea.style.position =
                 "fixed";
 
+
             textarea.style.opacity =
                 "0";
 
@@ -2147,6 +2569,7 @@ async function copyGeneratedCards() {
             "复制失败：",
             error
         );
+
 
         showMessage(
             "复制失败，请手动复制"
@@ -2189,7 +2612,7 @@ function clearGeneratedCards() {
 
 
 // ==================================================
-// 消息提示
+// 消息
 // ==================================================
 
 function showMessage(message) {
@@ -2207,7 +2630,9 @@ function showMessage(message) {
 
     } else {
 
-        console.log(message);
+        console.log(
+            message
+        );
     }
 }
 
@@ -2253,6 +2678,19 @@ function escapeHTML(value) {
 
 async function checkLogin() {
 
+    console.log(
+        "开始检查登录状态..."
+    );
+
+
+    if (!supabase) {
+
+        showLoginPage();
+
+        return;
+    }
+
+
     try {
 
         const {
@@ -2271,21 +2709,37 @@ async function checkLogin() {
                 error
             );
 
+
             showLoginPage();
 
             return;
         }
 
 
-        if (data.session) {
+        if (
+            data &&
+            data.session
+        ) {
+
+            console.log(
+                "检测到已有登录状态"
+            );
+
 
             showAdminPage();
 
+
             await loadDashboard();
+
 
             startHeartbeatRefresh();
 
         } else {
+
+            console.log(
+                "当前没有登录"
+            );
+
 
             showLoginPage();
         }
@@ -2296,6 +2750,7 @@ async function checkLogin() {
             "启动检查异常：",
             error
         );
+
 
         showLoginPage();
     }
@@ -2352,9 +2807,46 @@ window.loadDashboard =
 
 window.addEventListener(
     "DOMContentLoaded",
-    () => {
+    async () => {
 
-        checkLogin();
+        console.log(
+            "DOMContentLoaded"
+        );
+
+
+        const success =
+            initSupabase();
+
+
+        if (!success) {
+
+            return;
+        }
+
+
+        // 给登录按钮增加兼容绑定
+        const loginButton =
+            document.getElementById(
+                "loginButton"
+            );
+
+
+        if (loginButton) {
+
+            loginButton.addEventListener(
+                "click",
+                event => {
+
+                    event.preventDefault();
+
+                    login();
+
+                }
+            );
+        }
+
+
+        await checkLogin();
 
     }
 );
