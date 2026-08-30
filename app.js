@@ -1,3 +1,5 @@
+"use strict";
+
 // ==================================================
 // Supabase 配置
 // ==================================================
@@ -10,75 +12,105 @@ const SUPABASE_KEY =
 
 
 // ==================================================
-// Supabase 初始化
+// 基础检查
 // ==================================================
 
-let supabase = null;
-
-function initSupabase() {
-
-    try {
-
-        if (
-            !window.supabase ||
-            typeof window.supabase.createClient !== "function"
-        ) {
-
-            console.error(
-                "Supabase JS SDK 未加载"
-            );
-
-            showMessage(
-                "系统错误：Supabase 未加载"
-            );
-
-            return false;
-        }
+console.log("=================================");
+console.log("魔术手卡密后台 JS 开始加载");
+console.log("=================================");
 
 
-        supabase =
-            window.supabase.createClient(
-                SUPABASE_URL,
-                SUPABASE_KEY
-            );
+if (!window.supabase) {
 
+    console.error(
+        "Supabase JS 没有加载成功"
+    );
 
-        console.log(
-            "Supabase 初始化成功"
-        );
+    alert(
+        "系统组件加载失败：Supabase\n\n请检查网络后刷新页面。"
+    );
 
-
-        return true;
-
-    } catch (error) {
-
-        console.error(
-            "Supabase 初始化失败：",
-            error
-        );
-
-        showMessage(
-            "Supabase 初始化失败"
-        );
-
-        return false;
-    }
+    throw new Error(
+        "Supabase JS 未加载"
+    );
 }
+
+
+// ==================================================
+// 创建 Supabase
+// ==================================================
+
+const supabase =
+    window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_KEY
+    );
+
+
+console.log(
+    "Supabase 初始化成功"
+);
 
 
 // ==================================================
 // 心跳设置
 // ==================================================
 
-const HEARTBEAT_TIMEOUT = 5000;
+const HEARTBEAT_TIMEOUT =
+    5000;
 
-const HEARTBEAT_REFRESH_INTERVAL = 2000;
+const HEARTBEAT_REFRESH_INTERVAL =
+    2000;
 
-let heartbeatTimer = null;
+let heartbeatTimer =
+    null;
 
-let dashboardLoading = false;
+let dashboardLoading =
+    false;
 
-let heartbeatLoading = false;
+let heartbeatLoading =
+    false;
+
+
+// ==================================================
+// 消息
+// ==================================================
+
+function showMessage(message) {
+
+    const element =
+        document.getElementById("message");
+
+    if (element) {
+
+        element.textContent =
+            message;
+
+    } else {
+
+        console.log(message);
+    }
+}
+
+
+// ==================================================
+// HTML 安全
+// ==================================================
+
+function escapeHTML(value) {
+
+    return String(value ?? "")
+
+        .replaceAll("&", "&amp;")
+
+        .replaceAll("<", "&lt;")
+
+        .replaceAll(">", "&gt;")
+
+        .replaceAll('"', "&quot;")
+
+        .replaceAll("'", "&#039;");
+}
 
 
 // ==================================================
@@ -87,45 +119,37 @@ let heartbeatLoading = false;
 
 async function login() {
 
-    console.log(
-        "login() 被调用"
-    );
+    console.log("点击登录");
+
+    const emailElement =
+        document.getElementById("email");
+
+    const passwordElement =
+        document.getElementById("password");
 
 
-    if (!supabase) {
-
-        showMessage(
-            "系统尚未初始化，请刷新页面"
-        );
+    if (!emailElement) {
 
         console.error(
-            "Supabase 实例不存在"
+            "找不到 #email"
+        );
+
+        showMessage(
+            "页面错误：找不到邮箱输入框"
         );
 
         return;
     }
 
 
-    const emailElement =
-        document.getElementById(
-            "email"
-        );
-
-
-    const passwordElement =
-        document.getElementById(
-            "password"
-        );
-
-
-    if (!emailElement || !passwordElement) {
-
-        showMessage(
-            "找不到邮箱或密码输入框"
-        );
+    if (!passwordElement) {
 
         console.error(
-            "缺少 #email 或 #password"
+            "找不到 #password"
+        );
+
+        showMessage(
+            "页面错误：找不到密码输入框"
         );
 
         return;
@@ -135,16 +159,29 @@ async function login() {
     const email =
         emailElement.value.trim();
 
-
     const password =
         passwordElement.value;
 
 
-    if (!email || !password) {
+    if (!email) {
 
         showMessage(
-            "请输入邮箱和密码"
+            "请输入管理员邮箱"
         );
+
+        emailElement.focus();
+
+        return;
+    }
+
+
+    if (!password) {
+
+        showMessage(
+            "请输入管理员密码"
+        );
+
+        passwordElement.focus();
 
         return;
     }
@@ -155,12 +192,13 @@ async function login() {
     );
 
 
+    console.log(
+        "正在请求 Supabase 登录：",
+        email
+    );
+
+
     try {
-
-        console.log(
-            "正在请求 Supabase 登录..."
-        );
-
 
         const result =
             await supabase.auth.signInWithPassword({
@@ -175,25 +213,23 @@ async function login() {
 
 
         console.log(
-            "登录返回：",
+            "Supabase 登录返回：",
             result
         );
 
 
-        const data =
-            result.data;
-
-        const error =
-            result.error;
+        const {
+            data,
+            error
+        } = result;
 
 
         if (error) {
 
             console.error(
-                "登录失败：",
+                "Supabase 登录失败：",
                 error
             );
-
 
             showMessage(
                 "登录失败：" +
@@ -207,11 +243,12 @@ async function login() {
         if (!data || !data.session) {
 
             console.error(
-                "登录成功但没有 session"
+                "登录成功但没有 session：",
+                data
             );
 
             showMessage(
-                "登录失败：未获取到登录会话"
+                "登录失败：没有获取到登录会话"
             );
 
             return;
@@ -219,8 +256,7 @@ async function login() {
 
 
         console.log(
-            "登录成功",
-            data.user
+            "登录成功"
         );
 
 
@@ -244,9 +280,8 @@ async function login() {
             error
         );
 
-
         showMessage(
-            "登录异常：" +
+            "登录失败：" +
             (
                 error.message ||
                 "请检查网络连接"
@@ -263,15 +298,10 @@ async function login() {
 function showAdminPage() {
 
     const loginPage =
-        document.getElementById(
-            "loginPage"
-        );
-
+        document.getElementById("loginPage");
 
     const adminPage =
-        document.getElementById(
-            "adminPage"
-        );
+        document.getElementById("adminPage");
 
 
     if (loginPage) {
@@ -296,15 +326,10 @@ function showAdminPage() {
 function showLoginPage() {
 
     const loginPage =
-        document.getElementById(
-            "loginPage"
-        );
-
+        document.getElementById("loginPage");
 
     const adminPage =
-        document.getElementById(
-            "adminPage"
-        );
+        document.getElementById("adminPage");
 
 
     if (adminPage) {
@@ -331,27 +356,9 @@ async function logout() {
     stopHeartbeatRefresh();
 
 
-    if (!supabase) {
-
-        showLoginPage();
-
-        return;
-    }
-
-
     try {
 
-        const { error } =
-            await supabase.auth.signOut();
-
-
-        if (error) {
-
-            console.error(
-                "退出失败：",
-                error
-            );
-        }
+        await supabase.auth.signOut();
 
     } catch (error) {
 
@@ -366,9 +373,7 @@ async function logout() {
 
 
     const password =
-        document.getElementById(
-            "password"
-        );
+        document.getElementById("password");
 
 
     if (password) {
@@ -406,9 +411,7 @@ function showForgotPassword() {
 
 
     const emailElement =
-        document.getElementById(
-            "email"
-        );
+        document.getElementById("email");
 
 
     const email =
@@ -433,25 +436,13 @@ function showForgotPassword() {
 
 
 // ==================================================
-// 发送密码重置邮件
+// 发送重置邮件
 // ==================================================
 
 async function sendResetEmail() {
 
-    if (!supabase) {
-
-        showMessage(
-            "系统尚未初始化"
-        );
-
-        return;
-    }
-
-
     const emailElement =
-        document.getElementById(
-            "email"
-        );
+        document.getElementById("email");
 
 
     const email =
@@ -483,24 +474,20 @@ async function sendResetEmail() {
 
         const { error } =
             await supabase.auth.resetPasswordForEmail(
-
                 email,
-
                 {
                     redirectTo:
                         redirectUrl
                 }
-
             );
 
 
         if (error) {
 
             console.error(
-                "发送密码重置邮件失败：",
+                "发送重置邮件失败：",
                 error
             );
-
 
             showMessage(
                 "发送失败：" +
@@ -522,7 +509,6 @@ async function sendResetEmail() {
             error
         );
 
-
         showMessage(
             "发送失败：" +
             (
@@ -538,73 +524,51 @@ async function sendResetEmail() {
 // 密码恢复
 // ==================================================
 
-if (
-    typeof window !== "undefined"
-) {
+supabase.auth.onAuthStateChange(
+    async (event, session) => {
 
-    window.addEventListener(
-        "load",
-        () => {
+        console.log(
+            "Supabase Auth Event:",
+            event
+        );
 
-            if (!supabase) {
 
-                return;
+        if (
+            event === "PASSWORD_RECOVERY"
+        ) {
+
+            const box =
+                document.getElementById(
+                    "forgotPasswordBox"
+                );
+
+
+            const resetBox =
+                document.getElementById(
+                    "resetPasswordBox"
+                );
+
+
+            if (box) {
+
+                box.style.display =
+                    "block";
             }
 
 
-            supabase.auth.onAuthStateChange(
+            if (resetBox) {
 
-                async (
-                    event,
-                    session
-                ) => {
-
-                    console.log(
-                        "Supabase Auth Event:",
-                        event
-                    );
+                resetBox.style.display =
+                    "block";
+            }
 
 
-                    if (
-                        event ===
-                        "PASSWORD_RECOVERY"
-                    ) {
-
-                        const box =
-                            document.getElementById(
-                                "forgotPasswordBox"
-                            );
-
-
-                        const resetBox =
-                            document.getElementById(
-                                "resetPasswordBox"
-                            );
-
-
-                        if (box) {
-
-                            box.style.display =
-                                "block";
-                        }
-
-
-                        if (resetBox) {
-
-                            resetBox.style.display =
-                                "block";
-                        }
-
-
-                        showMessage(
-                            "请输入新的管理员密码"
-                        );
-                    }
-                }
+            showMessage(
+                "请输入新的管理员密码"
             );
         }
-    );
-}
+    }
+);
 
 
 // ==================================================
@@ -613,21 +577,10 @@ if (
 
 async function resetPassword() {
 
-    if (!supabase) {
-
-        showMessage(
-            "系统尚未初始化"
-        );
-
-        return;
-    }
-
-
     const newPasswordElement =
         document.getElementById(
             "newPassword"
         );
-
 
     const confirmPasswordElement =
         document.getElementById(
@@ -639,7 +592,6 @@ async function resetPassword() {
         newPasswordElement
             ? newPasswordElement.value
             : "";
-
 
     const confirmPassword =
         confirmPasswordElement
@@ -708,7 +660,6 @@ async function resetPassword() {
                 error
             );
 
-
             showMessage(
                 "修改密码失败：" +
                 error.message
@@ -739,7 +690,6 @@ async function resetPassword() {
 
         await supabase.auth.signOut();
 
-
         showLoginPage();
 
     } catch (error) {
@@ -748,7 +698,6 @@ async function resetPassword() {
             "修改密码异常：",
             error
         );
-
 
         showMessage(
             "修改密码失败：" +
@@ -767,12 +716,6 @@ async function resetPassword() {
 
 async function loadDashboard() {
 
-    if (!supabase) {
-
-        return;
-    }
-
-
     if (dashboardLoading) {
 
         return;
@@ -783,17 +726,22 @@ async function loadDashboard() {
         true;
 
 
+    console.log(
+        "开始加载后台数据"
+    );
+
+
     try {
 
-        const { data, error } =
+        const {
+            data,
+            error
+        } =
             await supabase
-
                 .from("cards")
-
                 .select(
                     "card, duration_days, status, created_at, activated_at, expires_at, device_id"
                 )
-
                 .order(
                     "created_at",
                     {
@@ -810,12 +758,10 @@ async function loadDashboard() {
                 error
             );
 
-
             showMessage(
                 "读取卡密失败：" +
                 error.message
             );
-
 
             return;
         }
@@ -829,16 +775,13 @@ async function loadDashboard() {
             cards
         );
 
-
         renderCards(
             cards
         );
 
-
         renderStock(
             cards
         );
-
 
         await loadHeartbeats(
             cards
@@ -850,7 +793,6 @@ async function loadDashboard() {
             "加载后台异常：",
             error
         );
-
 
         showMessage(
             "后台加载失败：" +
@@ -869,7 +811,7 @@ async function loadDashboard() {
 
 
 // ==================================================
-// 更新统计
+// 统计
 // ==================================================
 
 function updateStatistics(cards) {
@@ -881,77 +823,63 @@ function updateStatistics(cards) {
     const unused =
         cards.filter(
             card =>
-                card.status ===
-                "unused"
+                card.status === "unused"
         ).length;
 
 
     const active =
         cards.filter(
             card =>
-                card.status ===
-                "active"
+                card.status === "active"
         ).length;
 
 
     const expired =
         cards.filter(
             card =>
-                card.status ===
-                "expired"
+                card.status === "expired"
         ).length;
 
 
-    const totalElement =
-        document.getElementById(
-            "totalCount"
-        );
+    const elements = {
+
+        total:
+            document.getElementById(
+                "totalCount"
+            ),
+
+        unused:
+            document.getElementById(
+                "unusedCount"
+            ),
+
+        active:
+            document.getElementById(
+                "activeCount"
+            ),
+
+        expired:
+            document.getElementById(
+                "expiredCount"
+            )
+    };
 
 
-    const unusedElement =
-        document.getElementById(
-            "unusedCount"
-        );
-
-
-    const activeElement =
-        document.getElementById(
-            "activeCount"
-        );
-
-
-    const expiredElement =
-        document.getElementById(
-            "expiredCount"
-        );
-
-
-    if (totalElement) {
-
-        totalElement.textContent =
+    if (elements.total)
+        elements.total.textContent =
             total;
-    }
 
-
-    if (unusedElement) {
-
-        unusedElement.textContent =
+    if (elements.unused)
+        elements.unused.textContent =
             unused;
-    }
 
-
-    if (activeElement) {
-
-        activeElement.textContent =
+    if (elements.active)
+        elements.active.textContent =
             active;
-    }
 
-
-    if (expiredElement) {
-
-        expiredElement.textContent =
+    if (elements.expired)
+        elements.expired.textContent =
             expired;
-    }
 }
 
 
@@ -993,62 +921,60 @@ function renderCards(cards) {
 
     cards
         .slice(0, 20)
-        .forEach(
-            card => {
+        .forEach(card => {
 
-                const row =
-                    document.createElement(
-                        "tr"
-                    );
-
-
-                row.innerHTML = `
-
-                    <td>
-                        ${escapeHTML(
-                            card.card
-                        )}
-                    </td>
-
-                    <td>
-                        ${getCardType(
-                            card.duration_days
-                        )}
-                    </td>
-
-                    <td>
-                        ${getStatusHTML(
-                            card.status
-                        )}
-                    </td>
-
-                    <td>
-                        ${formatTime(
-                            card.activated_at
-                        )}
-                    </td>
-
-                    <td>
-                        ${formatTime(
-                            card.expires_at
-                        )}
-                    </td>
-
-                    <td>
-                        ${escapeHTML(
-                            card.device_id ||
-                            "未记录"
-                        )}
-                    </td>
-
-                `;
-
-
-                tbody.appendChild(
-                    row
+            const row =
+                document.createElement(
+                    "tr"
                 );
-            }
-        );
+
+
+            row.innerHTML = `
+
+                <td>
+                    ${escapeHTML(
+                        card.card
+                    )}
+                </td>
+
+                <td>
+                    ${getCardType(
+                        card.duration_days
+                    )}
+                </td>
+
+                <td>
+                    ${getStatusHTML(
+                        card.status
+                    )}
+                </td>
+
+                <td>
+                    ${formatTime(
+                        card.activated_at
+                    )}
+                </td>
+
+                <td>
+                    ${formatTime(
+                        card.expires_at
+                    )}
+                </td>
+
+                <td>
+                    ${escapeHTML(
+                        card.device_id ||
+                        "未记录"
+                    )}
+                </td>
+
+            `;
+
+
+            tbody.appendChild(
+                row
+            );
+        });
 }
 
 
@@ -1068,7 +994,6 @@ function renderStock(cards) {
 
         month:
             30
-
     };
 
 
@@ -1084,7 +1009,7 @@ function renderStock(cards) {
                         card.duration_days
                     ) === days &&
                     card.status ===
-                    "unused"
+                        "unused"
             ).length;
 
 
@@ -1095,7 +1020,7 @@ function renderStock(cards) {
                         card.duration_days
                     ) === days &&
                     card.status ===
-                    "active"
+                        "active"
             ).length;
 
 
@@ -1106,7 +1031,7 @@ function renderStock(cards) {
                         card.duration_days
                     ) === days &&
                     card.status ===
-                    "expired"
+                        "expired"
             ).length;
 
 
@@ -1115,12 +1040,10 @@ function renderStock(cards) {
                 `${name}Unused`
             );
 
-
         const activeElement =
             document.getElementById(
                 `${name}Active`
             );
-
 
         const expiredElement =
             document.getElementById(
@@ -1128,40 +1051,26 @@ function renderStock(cards) {
             );
 
 
-        if (unusedElement) {
-
+        if (unusedElement)
             unusedElement.textContent =
                 unused;
-        }
 
-
-        if (activeElement) {
-
+        if (activeElement)
             activeElement.textContent =
                 active;
-        }
 
-
-        if (expiredElement) {
-
+        if (expiredElement)
             expiredElement.textContent =
                 expired;
-        }
     }
 }
 
 
 // ==================================================
-// 读取心跳
+// 心跳
 // ==================================================
 
 async function loadHeartbeats(cards) {
-
-    if (!supabase) {
-
-        return;
-    }
-
 
     const tbody =
         document.getElementById(
@@ -1175,11 +1084,12 @@ async function loadHeartbeats(cards) {
     }
 
 
-    const { data, error } =
+    const {
+        data,
+        error
+    } =
         await supabase
-
             .from("card_heartbeats")
-
             .select(
                 "card, device_id, last_heartbeat"
             );
@@ -1220,16 +1130,13 @@ async function loadHeartbeats(cards) {
         new Map();
 
 
-    cards.forEach(
-        card => {
+    cards.forEach(card => {
 
-            cardMap.set(
-                card.card,
-                card
-            );
-
-        }
-    );
+        cardMap.set(
+            card.card,
+            card
+        );
+    });
 
 
     const rows = [];
@@ -1289,18 +1196,13 @@ async function loadHeartbeats(cards) {
 
                 elapsed:
                     elapsed
-
             });
-
         }
     );
 
 
     rows.sort(
-        (
-            a,
-            b
-        ) => {
+        (a, b) => {
 
             if (
                 a.online !==
@@ -1315,13 +1217,11 @@ async function loadHeartbeats(cards) {
 
             return (
                 new Date(
-                    b.heartbeat
-                        .last_heartbeat
+                    b.heartbeat.last_heartbeat
                 ).getTime()
                 -
                 new Date(
-                    a.heartbeat
-                        .last_heartbeat
+                    a.heartbeat.last_heartbeat
                 ).getTime()
             );
         }
@@ -1335,7 +1235,7 @@ async function loadHeartbeats(cards) {
 
 
 // ==================================================
-// 显示心跳
+// 心跳显示
 // ==================================================
 
 function renderHeartbeatRows(rows) {
@@ -1370,92 +1270,88 @@ function renderHeartbeatRows(rows) {
     }
 
 
-    rows.forEach(
-        item => {
+    rows.forEach(item => {
 
-            const heartbeat =
-                item.heartbeat;
+        const heartbeat =
+            item.heartbeat;
 
-
-            const card =
-                item.card;
+        const card =
+            item.card;
 
 
-            const row =
-                document.createElement(
-                    "tr"
-                );
-
-
-            const statusHTML =
-                item.online
-
-                    ? `
-                        <span class="online">
-                            🟢 在线
-                        </span>
-                      `
-
-                    : `
-                        <span class="offline">
-                            ⚪ 离线
-                        </span>
-                      `;
-
-
-            row.innerHTML = `
-
-                <td>
-                    ${escapeHTML(
-                        heartbeat.card
-                    )}
-                </td>
-
-                <td>
-                    ${getCardType(
-                        card.duration_days
-                    )}
-                </td>
-
-                <td>
-                    ${escapeHTML(
-                        heartbeat.device_id ||
-                        card.device_id ||
-                        "未记录"
-                    )}
-                </td>
-
-                <td>
-                    ${formatTime(
-                        heartbeat.last_heartbeat
-                    )}
-                </td>
-
-                <td>
-                    ${formatTime(
-                        card.activated_at
-                    )}
-                </td>
-
-                <td>
-                    ${formatTime(
-                        card.expires_at
-                    )}
-                </td>
-
-                <td>
-                    ${statusHTML}
-                </td>
-
-            `;
-
-
-            tbody.appendChild(
-                row
+        const row =
+            document.createElement(
+                "tr"
             );
 
-        }
-    );
+
+        const statusHTML =
+            item.online
+
+                ? `
+                    <span class="online">
+                        🟢 在线
+                    </span>
+                  `
+
+                : `
+                    <span class="offline">
+                        ⚪ 离线
+                    </span>
+                  `;
+
+
+        row.innerHTML = `
+
+            <td>
+                ${escapeHTML(
+                    heartbeat.card
+                )}
+            </td>
+
+            <td>
+                ${getCardType(
+                    card.duration_days
+                )}
+            </td>
+
+            <td>
+                ${escapeHTML(
+                    heartbeat.device_id ||
+                    card.device_id ||
+                    "未记录"
+                )}
+            </td>
+
+            <td>
+                ${formatTime(
+                    heartbeat.last_heartbeat
+                )}
+            </td>
+
+            <td>
+                ${formatTime(
+                    card.activated_at
+                )}
+            </td>
+
+            <td>
+                ${formatTime(
+                    card.expires_at
+                )}
+            </td>
+
+            <td>
+                ${statusHTML}
+            </td>
+
+        `;
+
+
+        tbody.appendChild(
+            row
+        );
+    });
 }
 
 
@@ -1485,12 +1381,6 @@ function startHeartbeatRefresh() {
 
 
                 try {
-
-                    if (!supabase) {
-
-                        return;
-                    }
-
 
                     const {
                         data,
@@ -1540,7 +1430,6 @@ function startHeartbeatRefresh() {
                 }
 
             },
-
             HEARTBEAT_REFRESH_INTERVAL
         );
 }
@@ -1552,17 +1441,12 @@ function startHeartbeatRefresh() {
 
 async function loadHeartbeatOnly() {
 
-    if (!supabase) {
-
-        return;
-    }
-
-
-    const { data, error } =
+    const {
+        data,
+        error
+    } =
         await supabase
-
             .from("cards")
-
             .select(
                 "card, duration_days, status, created_at, activated_at, expires_at, device_id"
             );
@@ -1586,7 +1470,7 @@ async function loadHeartbeatOnly() {
 
 
 // ==================================================
-// 停止自动刷新
+// 停止刷新
 // ==================================================
 
 function stopHeartbeatRefresh() {
@@ -1599,7 +1483,6 @@ function stopHeartbeatRefresh() {
             heartbeatTimer
         );
 
-
         heartbeatTimer =
             null;
     }
@@ -1607,26 +1490,15 @@ function stopHeartbeatRefresh() {
 
 
 // ==================================================
-// 指定卡密查询
+// 查询卡密
 // ==================================================
 
 async function searchCard() {
-
-    if (!supabase) {
-
-        showMessage(
-            "系统尚未初始化"
-        );
-
-        return;
-    }
-
 
     const input =
         document.getElementById(
             "searchInput"
         );
-
 
     const result =
         document.getElementById(
@@ -1664,18 +1536,14 @@ async function searchCard() {
             error
         } =
             await supabase
-
                 .from("cards")
-
                 .select(
                     "card, duration_days, status, created_at, activated_at, expires_at, device_id"
                 )
-
                 .eq(
                     "card",
                     card
                 )
-
                 .maybeSingle();
 
 
@@ -1685,7 +1553,6 @@ async function searchCard() {
                 "查询卡密失败：",
                 error
             );
-
 
             result.innerHTML =
                 "查询失败：" +
@@ -1712,37 +1579,27 @@ async function searchCard() {
 
                 <p>
                     <strong>卡密：</strong>
-                    ${escapeHTML(
-                        data.card
-                    )}
+                    ${escapeHTML(data.card)}
                 </p>
 
                 <p>
                     <strong>类型：</strong>
-                    ${getCardType(
-                        data.duration_days
-                    )}
+                    ${getCardType(data.duration_days)}
                 </p>
 
                 <p>
                     <strong>状态：</strong>
-                    ${getStatusHTML(
-                        data.status
-                    )}
+                    ${getStatusHTML(data.status)}
                 </p>
 
                 <p>
                     <strong>激活时间：</strong>
-                    ${formatTime(
-                        data.activated_at
-                    )}
+                    ${formatTime(data.activated_at)}
                 </p>
 
                 <p>
                     <strong>到期时间：</strong>
-                    ${formatTime(
-                        data.expires_at
-                    )}
+                    ${formatTime(data.expires_at)}
                 </p>
 
                 <p>
@@ -1754,7 +1611,6 @@ async function searchCard() {
                 </p>
 
             </div>
-
         `;
 
     } catch (error) {
@@ -1764,10 +1620,9 @@ async function searchCard() {
             error
         );
 
-
         result.innerHTML =
             "查询失败：" +
-            (
+            escapeHTML(
                 error.message ||
                 "请稍后再试"
             );
@@ -1784,16 +1639,6 @@ async function showCardsByStatus(
     title
 ) {
 
-    if (!supabase) {
-
-        showMessage(
-            "系统尚未初始化"
-        );
-
-        return;
-    }
-
-
     try {
 
         const {
@@ -1801,18 +1646,14 @@ async function showCardsByStatus(
             error
         } =
             await supabase
-
                 .from("cards")
-
                 .select(
                     "card, duration_days, status, created_at, activated_at, expires_at, device_id"
                 )
-
                 .eq(
                     "status",
                     status
                 )
-
                 .order(
                     "created_at",
                     {
@@ -1829,12 +1670,10 @@ async function showCardsByStatus(
                 error
             );
 
-
             showMessage(
                 "查询失败：" +
                 error.message
             );
-
 
             return;
         }
@@ -1867,13 +1706,9 @@ async function showCardsByStatus(
             tbody.innerHTML = `
 
                 <tr>
-
                     <td colspan="6">
-                        ${escapeHTML(
-                            title
-                        )}：暂无数据
+                        ${escapeHTML(title)}：暂无数据
                     </td>
-
                 </tr>
 
             `;
@@ -1882,63 +1717,58 @@ async function showCardsByStatus(
         }
 
 
-        cards.forEach(
-            card => {
+        cards.forEach(card => {
 
-                const row =
-                    document.createElement(
-                        "tr"
-                    );
-
-
-                row.innerHTML = `
-
-                    <td>
-                        ${escapeHTML(
-                            card.card
-                        )}
-                    </td>
-
-                    <td>
-                        ${getCardType(
-                            card.duration_days
-                        )}
-                    </td>
-
-                    <td>
-                        ${getStatusHTML(
-                            card.status
-                        )}
-                    </td>
-
-                    <td>
-                        ${formatTime(
-                            card.activated_at
-                        )}
-                    </td>
-
-                    <td>
-                        ${formatTime(
-                            card.expires_at
-                        )}
-                    </td>
-
-                    <td>
-                        ${escapeHTML(
-                            card.device_id ||
-                            "未记录"
-                        )}
-                    </td>
-
-                `;
-
-
-                tbody.appendChild(
-                    row
+            const row =
+                document.createElement(
+                    "tr"
                 );
 
-            }
-        );
+
+            row.innerHTML = `
+
+                <td>
+                    ${escapeHTML(card.card)}
+                </td>
+
+                <td>
+                    ${getCardType(
+                        card.duration_days
+                    )}
+                </td>
+
+                <td>
+                    ${getStatusHTML(
+                        card.status
+                    )}
+                </td>
+
+                <td>
+                    ${formatTime(
+                        card.activated_at
+                    )}
+                </td>
+
+                <td>
+                    ${formatTime(
+                        card.expires_at
+                    )}
+                </td>
+
+                <td>
+                    ${escapeHTML(
+                        card.device_id ||
+                        "未记录"
+                    )}
+                </td>
+
+            `;
+
+
+            tbody.appendChild(
+                row
+            );
+        });
 
 
         showMessage(
@@ -1951,7 +1781,6 @@ async function showCardsByStatus(
             "状态查询异常：",
             error
         );
-
 
         showMessage(
             "查询失败：" +
@@ -2001,22 +1830,14 @@ function getCardType(days) {
         Number(days);
 
 
-    if (number === 1) {
-
+    if (number === 1)
         return "天卡";
-    }
 
-
-    if (number === 7) {
-
+    if (number === 7)
         return "周卡";
-    }
 
-
-    if (number === 30) {
-
+    if (number === 30)
         return "月卡";
-    }
 
 
     return number + "天";
@@ -2030,8 +1851,7 @@ function getCardType(days) {
 function getStatusHTML(status) {
 
     if (
-        status ===
-        "unused"
+        status === "unused"
     ) {
 
         return `
@@ -2043,8 +1863,7 @@ function getStatusHTML(status) {
 
 
     if (
-        status ===
-        "active"
+        status === "active"
     ) {
 
         return `
@@ -2056,8 +1875,7 @@ function getStatusHTML(status) {
 
 
     if (
-        status ===
-        "expired"
+        status === "expired"
     ) {
 
         return `
@@ -2132,19 +1950,16 @@ function formatTime(value) {
 
             hour12:
                 false
-
         }
     );
 }
 
 
 // ==================================================
-// 随机字符串
+// 随机
 // ==================================================
 
-function randomPart(
-    length = 4
-) {
+function randomPart(length = 4) {
 
     const chars =
         "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -2214,19 +2029,22 @@ function randomPart(
 
 function generateCardCode(type) {
 
-    const prefix =
-        String(type)
-            .toUpperCase();
-
-
     return (
-        prefix +
+
+        String(type).toUpperCase() +
+
         "-" +
+
         randomPart(4) +
+
         "-" +
+
         randomPart(4) +
+
         "-" +
+
         randomPart(4)
+
     );
 }
 
@@ -2237,21 +2055,10 @@ function generateCardCode(type) {
 
 async function generateCards() {
 
-    if (!supabase) {
-
-        showMessage(
-            "系统尚未初始化"
-        );
-
-        return;
-    }
-
-
     const typeElement =
         document.getElementById(
             "generateType"
         );
-
 
     const countElement =
         document.getElementById(
@@ -2306,7 +2113,6 @@ async function generateCards() {
 
         month:
             30
-
     };
 
 
@@ -2326,30 +2132,20 @@ async function generateCards() {
 
     const cards = [];
 
-
     const generatedCodes =
         new Set();
 
 
-    // ==================================================
-    // 本批次防重复
-    // ==================================================
-
     while (
-        cards.length <
-        count
+        cards.length < count
     ) {
 
         const code =
-            generateCardCode(
-                type
-            );
+            generateCardCode(type);
 
 
         if (
-            generatedCodes.has(
-                code
-            )
+            generatedCodes.has(code)
         ) {
 
             continue;
@@ -2371,7 +2167,6 @@ async function generateCards() {
 
             status:
                 "unused"
-
         });
     }
 
@@ -2388,16 +2183,9 @@ async function generateCards() {
             error
         } =
             await supabase
-
                 .from("cards")
-
-                .insert(
-                    cards
-                )
-
-                .select(
-                    "card"
-                );
+                .insert(cards)
+                .select("card");
 
 
         if (error) {
@@ -2407,12 +2195,10 @@ async function generateCards() {
                 error
             );
 
-
             showMessage(
                 "生成失败：" +
                 error.message
             );
-
 
             return;
         }
@@ -2420,12 +2206,10 @@ async function generateCards() {
 
         const generated =
             (data || [])
-
                 .map(
                     item =>
                         item.card
                 )
-
                 .join("\n");
 
 
@@ -2469,7 +2253,6 @@ async function generateCards() {
             error
         );
 
-
         showMessage(
             "生成失败：" +
             (
@@ -2482,7 +2265,7 @@ async function generateCards() {
 
 
 // ==================================================
-// 复制卡密
+// 复制
 // ==================================================
 
 async function copyGeneratedCards() {
@@ -2511,52 +2294,9 @@ async function copyGeneratedCards() {
 
     try {
 
-        if (
-            navigator.clipboard &&
-            navigator.clipboard.writeText
-        ) {
-
-            await navigator.clipboard.writeText(
-                text
-            );
-
-        } else {
-
-            const textarea =
-                document.createElement(
-                    "textarea"
-                );
-
-
-            textarea.value =
-                text;
-
-
-            textarea.style.position =
-                "fixed";
-
-
-            textarea.style.opacity =
-                "0";
-
-
-            document.body.appendChild(
-                textarea
-            );
-
-
-            textarea.select();
-
-
-            document.execCommand(
-                "copy"
-            );
-
-
-            document.body.removeChild(
-                textarea
-            );
-        }
+        await navigator.clipboard.writeText(
+            text
+        );
 
 
         showMessage(
@@ -2570,7 +2310,6 @@ async function copyGeneratedCards() {
             error
         );
 
-
         showMessage(
             "复制失败，请手动复制"
         );
@@ -2579,7 +2318,7 @@ async function copyGeneratedCards() {
 
 
 // ==================================================
-// 清空生成结果
+// 清空
 // ==================================================
 
 function clearGeneratedCards() {
@@ -2588,7 +2327,6 @@ function clearGeneratedCards() {
         document.getElementById(
             "generatedCards"
         );
-
 
     const resultElement =
         document.getElementById(
@@ -2612,83 +2350,14 @@ function clearGeneratedCards() {
 
 
 // ==================================================
-// 消息
-// ==================================================
-
-function showMessage(message) {
-
-    const element =
-        document.getElementById(
-            "message"
-        );
-
-
-    if (element) {
-
-        element.textContent =
-            message;
-
-    } else {
-
-        console.log(
-            message
-        );
-    }
-}
-
-
-// ==================================================
-// HTML 安全处理
-// ==================================================
-
-function escapeHTML(value) {
-
-    return String(value)
-
-        .replaceAll(
-            "&",
-            "&amp;"
-        )
-
-        .replaceAll(
-            "<",
-            "&lt;"
-        )
-
-        .replaceAll(
-            ">",
-            "&gt;"
-        )
-
-        .replaceAll(
-            '"',
-            "&quot;"
-        )
-
-        .replaceAll(
-            "'",
-            "&#039;"
-        );
-}
-
-
-// ==================================================
-// 登录状态检查
+// 检查登录
 // ==================================================
 
 async function checkLogin() {
 
     console.log(
-        "开始检查登录状态..."
+        "检查当前登录状态..."
     );
-
-
-    if (!supabase) {
-
-        showLoginPage();
-
-        return;
-    }
 
 
     try {
@@ -2697,9 +2366,7 @@ async function checkLogin() {
             data,
             error
         } =
-            await supabase
-                .auth
-                .getSession();
+            await supabase.auth.getSession();
 
 
         if (error) {
@@ -2709,28 +2376,21 @@ async function checkLogin() {
                 error
             );
 
-
             showLoginPage();
 
             return;
         }
 
 
-        if (
-            data &&
-            data.session
-        ) {
+        if (data.session) {
 
             console.log(
-                "检测到已有登录状态"
+                "发现已有登录会话"
             );
-
 
             showAdminPage();
 
-
             await loadDashboard();
-
 
             startHeartbeatRefresh();
 
@@ -2739,7 +2399,6 @@ async function checkLogin() {
             console.log(
                 "当前没有登录"
             );
-
 
             showLoginPage();
         }
@@ -2750,7 +2409,6 @@ async function checkLogin() {
             "启动检查异常：",
             error
         );
-
 
         showLoginPage();
     }
@@ -2805,48 +2463,33 @@ window.loadDashboard =
 // 页面启动
 // ==================================================
 
-window.addEventListener(
-    "DOMContentLoaded",
-    async () => {
+function startApp() {
 
-        console.log(
-            "DOMContentLoaded"
-        );
+    console.log(
+        "DOM 已加载，后台初始化"
+    );
 
 
-        const success =
-            initSupabase();
+    checkLogin();
+}
 
 
-        if (!success) {
+if (
+    document.readyState ===
+    "loading"
+) {
 
-            return;
-        }
+    document.addEventListener(
+        "DOMContentLoaded",
+        startApp
+    );
 
+} else {
 
-        // 给登录按钮增加兼容绑定
-        const loginButton =
-            document.getElementById(
-                "loginButton"
-            );
-
-
-        if (loginButton) {
-
-            loginButton.addEventListener(
-                "click",
-                event => {
-
-                    event.preventDefault();
-
-                    login();
-
-                }
-            );
-        }
+    startApp();
+}
 
 
-        await checkLogin();
-
-    }
+console.log(
+    "魔术手卡密后台 JS 加载完成"
 );
